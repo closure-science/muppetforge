@@ -10,7 +10,6 @@
         muppetforge, 
         muppetforge_root_handler, 
         muppetforge_modules_handler, 
-        muppetforge_module_handler, 
         muppetforge_releases_handler
     ]},
     {env, []}
