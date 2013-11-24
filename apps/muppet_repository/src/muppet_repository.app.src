@@ -1,0 +1,9 @@
+{application, muppet_repository, [
+    {description, "Puppet modules repository."},
+    {vsn, "1"},
+    {registered, [muppet_repository_application, muppet_repository_supervisor, muppet_repository]},
+    {applications, [kernel, stdlib, crypto, ssh]},
+	{modules, [muppet_repository, muppet_repository_application, muppet_repository_supervisor ]},
+    {mod, { muppet_repository_application, []}},
+    {env, []}
+]}.

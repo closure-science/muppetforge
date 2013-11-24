@@ -1,0 +1,17 @@
+{application, muppetforge, [
+    {description, "Muppet forge"},
+    {vsn, "1"},
+    {registered, []},
+    {applications, [ kernel, stdlib, crypto, public_key, ssl, cowboy, jiffy, muppet_repository ]},
+    {mod, { muppetforge_application, []}},
+    {modules, [
+        muppetforge_application, 
+        muppetforge_supervisor, 
+        muppetforge, 
+        muppetforge_root_handler, 
+        muppetforge_modules_handler, 
+        muppetforge_module_handler, 
+        muppetforge_releases_handler
+    ]},
+    {env, []}
+ ]}.

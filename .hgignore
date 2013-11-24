@@ -1,0 +1,7 @@
+^rel/files
+^rel/[a-z_]+node
+^deps
+.eunit/
+^.deps_plt
+\.beam$
+\.app$
