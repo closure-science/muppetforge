@@ -8,7 +8,6 @@
         muppetforge_application, 
         muppetforge_supervisor, 
         muppetforge, 
-        muppetforge_root_handler, 
         muppetforge_modules_handler, 
         muppetforge_releases_handler
     ]},
