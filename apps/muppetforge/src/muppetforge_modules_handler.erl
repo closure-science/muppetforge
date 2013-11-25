@@ -14,16 +14,16 @@ init({tcp, http}, Req, [modules]) ->
     {ok, Req, {modules, Method, []}}.
 
 handle(Req, {module, <<"GET">>, [Author, ModuleName]} = State) ->
-    {ok, _} = cowboy_req:reply(200, ?HEADERS, jiffy:encode([Author, ModuleName]), Req),
+    {true, Module} = muppet_repository:search_module([{full_name, <<Author/binary, <<"/">>/binary, ModuleName/binary>>}]),
+    {ok, _} = cowboy_req:reply(200, ?HEADERS, jiffy:encode({Module}), Req),
     {ok, Req, State};
 handle(Req, {modules, <<"GET">>, []} = State) ->
-    {ok, RequestBody, _} = cowboy_req:body(Req),
-    Response = ok,
-    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(Response), Req),
-    {ok, Req2, State};
-handle(Req, {_, Method, _}) ->
-    {ok, Req2} = cowboy_req:reply(405, ?HEADERS, jiffy:encode([<<"unsupported method">>, Method]), Req),
-    {ok, Req2, State}.
+    Modules = muppet_repository:search_modules([]),
+    {ok, _} = cowboy_req:reply(200, ?HEADERS, jiffy:encode([{M} || M <- Modules]), Req),
+    {ok, Req, State};
+handle(Req, {_, Method, _} = State) ->
+    {ok, _} = cowboy_req:reply(405, ?HEADERS, jiffy:encode([<<"unsupported method">>, Method]), Req),
+    {ok, Req, State}.
 
 
 terminate(_Reason, _Req, _State) ->
