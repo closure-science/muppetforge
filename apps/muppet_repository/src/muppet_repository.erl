@@ -45,10 +45,7 @@ search_modules(Terms) ->
 
 init([]) ->
     filelib:ensure_dir(assets_dir()),
-    {ok, [
-        % add_release(<<"Mario">>, <<"mario_module">>, <<"A mario module">>, <<"http://mario.example.com">>, [<<"0.1.0">>], [<<"tag1">>, <<"tag2">>]),
-        % add_release(<<"luigi">>, <<"luigi_module">>, <<"A luigi module">>, <<"http://luigi.example.com">>, [<<"0.1.1">>], [<<"tag3">>, <<"tag2">>])
-    ]}.
+    state_from_priv_metadata().
 
 handle_cast(Request, State) ->
     {noreply, State}.
@@ -76,6 +73,10 @@ terminate(_Reason, _State) ->
 
 
 %priv
+state_from_priv_metadata() ->
+    {ok, Files} = file:list_dir(assets_dir()),
+    State = lists:map(fun read_metadata/1, Files), % todo: filter for tgz only?
+    {ok, State}.
 
 read_metadata(File) ->
     {ok, FileNamesInTar} = erl_tar:table(File, [compressed]),
