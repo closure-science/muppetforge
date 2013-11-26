@@ -52,7 +52,7 @@ search(Terms) ->
     gen_server:call(?MODULE, {search_modules, Terms}).
 %% priv
 search(Modules, Terms) ->
-    search_modules(Modules, Terms,[]).
+    search(Modules, Terms,[]).
 search([Module|Rest], Terms, Matching) ->
     case binary:match(Module#module.full_name, Terms) of
         nomatch -> search(Rest, Terms, Matching);
@@ -65,6 +65,7 @@ search([], Terms, Matching) ->
 
 init([]) ->
     filelib:ensure_dir(assets_dir()),
+    % state_from_priv_metadata().
     {ok, [
         module(<<"Mario">>, <<"mario_module">>, <<"A mario module">>, <<"http://mario.example.com">>, [
             release(<<"0.0.1">>, <<"m/Mario/Mario-mario_module-0.0.1.tar.gz">>, [
@@ -99,6 +100,11 @@ terminate(_Reason, _State) ->
 
 
 %priv
+state_from_priv_metadata() ->
+    {ok, Files} = file:list_dir(assets_dir()),
+    State = lists:map(fun read_metadata/1, Files), % todo: filter for tgz only?
+    {ok, State}.
+
 dependency(FullName, Version) ->
     [FullName, Version].
 

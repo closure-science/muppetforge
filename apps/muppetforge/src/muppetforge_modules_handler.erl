@@ -17,12 +17,12 @@ init({tcp, http}, Req, [modules]) ->
     {ok, Req, {modules, Method, []}}.
 
 handle(Req, {module, <<"GET">>, [Author, ModuleName]} = State) ->
-    {true, Module} = muppet_repository:find_module(<<Author/binary, <<"/">>/binary, ModuleName/binary>>),
+    {true, Module} = muppet_repository:find(<<Author/binary, <<"/">>/binary, ModuleName/binary>>),
     {ok, _} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(muppet_repository:serializable_module(Module)), Req),
     {ok, Req, State};
 handle(Req, {modules, <<"GET">>, []} = State) ->
     {Query, _} = cowboy_req:qs_val(<<"q">>, Req, <<"">>),
-    Modules = muppet_repository:search_modules(query_terms(Query)),
+    Modules = muppet_repository:search(query_terms(Query)),
     Serializable = [muppet_repository:serializable_module(M) || M <- Modules],
     {ok, _} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(Serializable), Req),
     {ok, Req, State};
