@@ -46,8 +46,8 @@ search_modules(Terms) ->
 init([]) ->
     filelib:ensure_dir(assets_dir()),
     {ok, [
-        add_release(<<"Mario">>, <<"mario_module">>, <<"A mario module">>, <<"http://mario.example.com">>, [<<"0.1.0">>], [<<"tag1">>, <<"tag2">>]),
-        add_release(<<"luigi">>, <<"luigi_module">>, <<"A luigi module">>, <<"http://luigi.example.com">>, [<<"0.1.1">>], [<<"tag3">>, <<"tag2">>])
+        % add_release(<<"Mario">>, <<"mario_module">>, <<"A mario module">>, <<"http://mario.example.com">>, [<<"0.1.0">>], [<<"tag1">>, <<"tag2">>]),
+        % add_release(<<"luigi">>, <<"luigi_module">>, <<"A luigi module">>, <<"http://luigi.example.com">>, [<<"0.1.1">>], [<<"tag3">>, <<"tag2">>])
     ]}.
 
 handle_cast(Request, State) ->
@@ -85,7 +85,7 @@ read_metadata(File) ->
     Author = element(2, lists:keyfind(<<"author">>, 1, Decoded)),
     Name = element(2, lists:keyfind(<<"name">>, 1, Decoded)), % FIXME: name in metadata.json is the dash-separated fullname 
     Version = element(2, lists:keyfind(<<"version">>, 1, Decoded)),
-    FileName = <<Author/binary, <<"-">>/binary, Name/binary, <<"-">>/binary, Version/binary, <<".tar.gz">>/binary >>
+    FileName = <<Author/binary, <<"-">>/binary, Name/binary, <<"-">>/binary, Version/binary, <<".tar.gz">>/binary >>,
     #module{
         author = Author,
         name = Name,

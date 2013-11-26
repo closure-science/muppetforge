@@ -27,7 +27,7 @@ handle(Req, {modules, <<"GET">>, []} = State) ->
     {ok, Req, State};
 handle(Req, {deploy, <<"POST">>, [Body]} = State) ->
     io:format("about to parse"),
-    Got = muppet_repository:read_release_from_tarball({binary , Body}),
+    Got = muppet_repository:read_metadata({binary , Body}),
     io:format("parsed ~p~n", [Got]),
     {ok, _} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
     {ok, Req, State};
