@@ -5,11 +5,11 @@
 start_httpd() ->
     Dispatcher = cowboy_router:compile([
         {'_', [
-            {"/mf/modules.json", muppetforge_modules_handler, [modules]},
-            {"/mf/api/v1/releases.json", muppetforge_releases_handler, []},
-            {"/mf/api/deploy", muppetforge_modules_handler, [deploy]},
-            {"/mf/system/releases/[...]", cowboy_static, {dir, muppet_repository:assets_dir() }},
-            {"/mf/:author/:modulename", [{modulename, function, fun module_name/1}], muppetforge_modules_handler, [module]},
+            {"/mf/modules.json", muppetforge_handler, [modules]},
+            {"/mf/api/v1/releases.json", muppetforge_handler, [releases]},
+            {"/mf/api/deploy", muppetforge_handler, [deploy]},
+            {"/mf/:author/:modulename", [{modulename, function, fun module_name/1}], muppetforge_handler, [module]},
+            {"/mf/[...]", cowboy_static, {dir, muppet_repository:assets_dir() }},
             {"/", cowboy_static,  {file, code:priv_dir(muppetforge) ++ "/static/index.html"}},
             {"/[...]", cowboy_static, {dir, code:priv_dir(muppetforge) ++ "/static" }}
         ]}

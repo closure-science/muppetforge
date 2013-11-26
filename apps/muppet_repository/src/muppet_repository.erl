@@ -6,7 +6,7 @@
 -export([find/1, search/1, assets_dir/0]).
 -export([start_link/0]).
 -define(FULL_NAME(Author, ModuleName), <<Author/binary, <<"/">>/binary, ModuleName/binary>>).
--define(FILE_NAME(Author, ModuleName, Version), <<Author/binary, <<"-">>/binary, ModuleName/binary, <<"-">>/binary, Version/binary, <<".tar.gz">>/binary >>).
+-define(FILE_NAME(Author, ModuleName, Version), << <<"/">>/binary , Author/binary, <<"-">>/binary, ModuleName/binary, <<"-">>/binary, Version/binary, <<".tar.gz">>/binary >>).
 
 -record(release, {
     version,
@@ -36,6 +36,34 @@ start_link() ->
 assets_dir() ->
     code:priv_dir(?MODULE) ++ "/assets".
 
+
+find_release({Author, Name}, Version) ->
+    gen_server:call(?MODULE, {find_release, Author, Name, Version}).
+%% priv
+find_release([], Modules, Dict) ->
+    Dict;
+find_release([[FullName, Version] = Current|Others], Modules, Dict) ->
+    Dict2 = case dict:is_key(FullName, Dict) of 
+        false -> dict:store(FullName, sets:new(), Dict);
+        _ -> Dict
+    end,
+    {true, Module} = find(Modules, FullName),
+    ViableReleases = search_matching_versions(Module#module.releases, Version),
+    NewSet = sets:union(ViableReleases, dict:fetch(FullName, Dict2)),
+    Dict3 = dict:store(FullName, NewSet, Dict2),
+    NewDependencies = sets:from_list(lists:flatten([V#release.dependencies || V <- sets:to_list(ViableReleases)])),
+    NewQueue = sets:to_list(sets:union(NewDependencies,sets:from_list(Others))),
+    find_release(NewQueue, Modules, Dict3).
+
+
+search_matching_versions(Releases, any) ->
+    sets:from_list(Releases);
+search_matching_versions(Releases, Version) ->
+    sets:from_list(lists:filter(fun(R) -> 
+        R#release.version =:= Version
+    end, Releases)).
+
+
 find(FullName) ->
     gen_server:call(?MODULE, {find_module, FullName}).
 %% priv
@@ -48,31 +76,57 @@ find([], FullName) ->
     {false, FullName}.
 
 
+
+
 search(Terms) ->
     gen_server:call(?MODULE, {search_modules, Terms}).
 %% priv
 search(Modules, Terms) ->
     search(Modules, Terms,[]).
+search(Modules, [], _) ->
+    Modules;
+search([], Terms, Matching) ->
+    Matching;
 search([Module|Rest], Terms, Matching) ->
     case binary:match(Module#module.full_name, Terms) of
         nomatch -> search(Rest, Terms, Matching);
         _ -> search(Rest, Terms, [Module|Matching])
-    end;
-search([], Terms, Matching) ->
-    Matching.
+    end.
 
 % gen_server callbacks
 
 init([]) ->
-    filelib:ensure_dir(assets_dir()),
-    % state_from_priv_metadata().
-    {ok, [
-        module(<<"Mario">>, <<"mario_module">>, <<"A mario module">>, <<"http://mario.example.com">>, [
-            release(<<"0.0.1">>, <<"m/Mario/Mario-mario_module-0.0.1.tar.gz">>, [
-                dependency(<<"Luigi">>, <<"0.0.1">>)
-            ])
-        ])
-    ]}.
+    AssetsDir = assets_dir(),
+    filelib:ensure_dir(AssetsDir),
+    {ok, Files} = file:list_dir(AssetsDir),
+    ModulesToBeMerged = [read_metadata(AssetsDir ++ "/" ++ F) || F <- Files ],
+    {ok, ModulesToBeMerged}.
+
+
+read_metadata(File) ->
+    {ok, FileNamesInTar} = erl_tar:table(File, [compressed]),
+    DirName = hd(FileNamesInTar),
+    CleanDirName = case hd(lists:reverse(DirName)) of 
+        $/ -> DirName;
+        _ -> DirName ++ "/"
+    end,    
+    {ok, [{_, BinaryJson}]} = erl_tar:extract(File, [memory, compressed, {files,[CleanDirName++"metadata.json"]}]),
+    {Decoded} = jiffy:decode(BinaryJson),
+    Author = element(2, lists:keyfind(<<"author">>, 1, Decoded)),
+    FullName = element(2, lists:keyfind(<<"name">>, 1, Decoded)),
+    [_, Name] = re:split(FullName, <<"-">>, [{return, binary}]),
+    Version = element(2, lists:keyfind(<<"version">>, 1, Decoded)),
+    FileName = ?FILE_NAME(Author, Name, Version),
+    #module{
+        author = Author,
+        name = Name,
+        full_name = ?FULL_NAME(Author, Name),
+        desc = element(2, lists:keyfind(<<"description">>, 1, Decoded)),
+        project_url = element(2, lists:keyfind(<<"project_page">>, 1, Decoded)),
+        releases = [#release{version=Version, file=FileName, dependencies=[]}], % TODO: dependencies
+        tag_list = [] % TODO: not in metadata, should be added to the post request. or /cares.
+    }.
+
 
 handle_cast(Request, State) ->
     {noreply, State}.
@@ -86,6 +140,9 @@ handle_call({find_module, FullName}, From, State) ->
 handle_call({search_modules, Terms}, From, State) ->
     Result = search(State, Terms),
     {reply, Result, State};
+handle_call({find_release, Author, Name, Version}, From, State) ->
+    Result = find_release([[?FULL_NAME(Author, Name), Version]], State, dict:new()),
+    {reply, Result, State};
 handle_call(status, From, State) ->
     {reply, State, State}.
 
@@ -97,13 +154,6 @@ code_change(_OldVsn, State, _Extra) ->
 
 terminate(_Reason, _State) ->
     ok.
-
-
-%priv
-state_from_priv_metadata() ->
-    {ok, Files} = file:list_dir(assets_dir()),
-    State = lists:map(fun read_metadata/1, Files), % todo: filter for tgz only?
-    {ok, State}.
 
 dependency(FullName, Version) ->
     [FullName, Version].
@@ -128,34 +178,27 @@ module(Author, Name, Desc, ProjectUrl, Releases) ->
     }.
 
 serializable_module(Module) ->
+    Latest = hd(Module#module.releases),
     {[
         {full_name, Module#module.full_name},
         {author, Module#module.author},
         {name, Module#module.name},
         {desc, Module#module.desc},
         {project_url, Module#module.project_url},
-        {releases, [serializable_release(R) || R <- Module#module.releases]}
+        {version, Latest#release.version }, % TODO: check order
+        {releases, [serializable_release(R) || R <- Module#module.releases]},
+        {tag_list, []}
     ]}.
 
 serializable_release(Release) ->
-    <<"something">>.
+    {[
+        {version, Release#release.version},
+        {file, Release#release.file}, 
+        {dependencies, Release#release.dependencies}
+    ]}.
 
-
-read_metadata(File) ->
-    {ok, FileNamesInTar} = erl_tar:table(File, [compressed]),
-    DirName = hd(FileNamesInTar),
-    {ok, [{_, BinaryJson}]} = erl_tar:extract(File, [memory, compressed, {files,[DirName++"/metadata.json"]}]),
-    {Decoded} = jiffy:decode(BinaryJson),
-    Author = element(2, lists:keyfind(<<"author">>, 1, Decoded)),
-    Name = element(2, lists:keyfind(<<"name">>, 1, Decoded)), % FIXME: name in metadata.json is the dash-separated fullname 
-    Version = element(2, lists:keyfind(<<"version">>, 1, Decoded)),
-    FileName = ?FILE_NAME(Author, Name, Version),
-    #module{
-        author = Author,
-        name = Name,
-        full_name = ?FULL_NAME(Author, Name),
-        desc = element(2, lists:keyfind(<<"description">>, 1, Decoded)),
-        project_url = element(2, lists:keyfind(<<"project_page">>, 1, Decoded)),
-        releases = [#release{version=Version, file=FileName, dependencies=[]}], % TODO: dependencies
-        tag_list = [] % TODO: not in metadata, should be added to the post request. or /cares.
-    }.
+serializable_releases(Releases) ->
+    FullNames = dict:fetch_keys(Releases),
+    {[ 
+        {FN, [ serializable_release(R) || R <- sets:to_list(dict:fetch(FN, Releases)) ]} || FN <- FullNames 
+    ]}.

@@ -8,8 +8,7 @@
         muppetforge_application, 
         muppetforge_supervisor, 
         muppetforge, 
-        muppetforge_modules_handler, 
-        muppetforge_releases_handler
+        muppetforge_handler
     ]},
     {env, []}
  ]}.
