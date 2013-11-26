@@ -17,13 +17,14 @@ init({tcp, http}, Req, [modules]) ->
     {ok, Req, {modules, Method, []}}.
 
 handle(Req, {module, <<"GET">>, [Author, ModuleName]} = State) ->
-    {true, Module} = muppet_repository:search_module([{full_name, <<Author/binary, <<"/">>/binary, ModuleName/binary>>}]),
-    {ok, _} = cowboy_req:reply(200, ?HEADERS, jiffy:encode({Module}), Req),
+    {true, Module} = muppet_repository:find_module(<<Author/binary, <<"/">>/binary, ModuleName/binary>>),
+    {ok, _} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(muppet_repository:serializable_module(Module)), Req),
     {ok, Req, State};
 handle(Req, {modules, <<"GET">>, []} = State) ->
     {Query, _} = cowboy_req:qs_val(<<"q">>, Req, <<"">>),
     Modules = muppet_repository:search_modules(query_terms(Query)),
-    {ok, _} = cowboy_req:reply(200, ?HEADERS, jiffy:encode([{M} || M <- Modules]), Req),
+    Serializable = [muppet_repository:serializable_module(M) || M <- Modules],
+    {ok, _} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(Serializable), Req),
     {ok, Req, State};
 handle(Req, {deploy, <<"POST">>, [Body]} = State) ->
     io:format("about to parse"),

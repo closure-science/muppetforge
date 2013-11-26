@@ -5,13 +5,13 @@
 start_httpd() ->
     Dispatcher = cowboy_router:compile([
         {'_', [
+            {"/mf/modules.json", muppetforge_modules_handler, [modules]},
+            {"/mf/api/v1/releases.json", muppetforge_releases_handler, []},
+            {"/mf/api/deploy", muppetforge_modules_handler, [deploy]},
+            {"/mf/system/releases/[...]", cowboy_static, {dir, muppet_repository:assets_dir() }},
+            {"/mf/:author/:modulename", [{modulename, function, fun module_name/1}], muppetforge_modules_handler, [module]},
             {"/", cowboy_static,  {file, code:priv_dir(muppetforge) ++ "/static/index.html"}},
-            {"/resources/[...]", cowboy_static, {dir, code:priv_dir(muppetforge) ++ "/static/resources" }},
-            {"/modules.json", muppetforge_modules_handler, [modules]},
-            {"/api/v1/releases.json", muppetforge_releases_handler, []},
-            {"/api/deploy", muppetforge_modules_handler, [deploy]},
-            {"/:author/:modulename", [{modulename, function, fun module_name/1}], muppetforge_modules_handler, [module]},
-            {"/system/releases/[...]", cowboy_static, {dir, muppet_repository:assets_dir() }}
+            {"/[...]", cowboy_static, {dir, code:priv_dir(muppetforge) ++ "/static" }}
         ]}
     ]),
     cowboy:start_http(http, 100, [{port, 8080}], [ {env, [{dispatch, Dispatcher}]} ]).
