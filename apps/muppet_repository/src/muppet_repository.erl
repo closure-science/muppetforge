@@ -42,7 +42,7 @@ find_release({Author, Name}, Version) ->
 %% priv
 find_release([], Modules, Dict) ->
     Dict;
-find_release([[FullName, Version] = Current|Others], Modules, Dict) ->
+find_release([[FullName, Version]|Others], Modules, Dict) ->
     Dict2 = case dict:is_key(FullName, Dict) of 
         false -> dict:store(FullName, sets:new(), Dict);
         _ -> Dict
@@ -51,7 +51,7 @@ find_release([[FullName, Version] = Current|Others], Modules, Dict) ->
     ViableReleases = search_matching_versions(Module#module.releases, Version),
     NewSet = sets:union(ViableReleases, dict:fetch(FullName, Dict2)),
     Dict3 = dict:store(FullName, NewSet, Dict2),
-    NewDependencies = sets:from_list(lists:flatten([V#release.dependencies || V <- sets:to_list(ViableReleases)])),
+    NewDependencies = sets:from_list(lists:append([V#release.dependencies || V <- sets:to_list(ViableReleases)])),
     NewQueue = sets:to_list(sets:union(NewDependencies,sets:from_list(Others))),
     find_release(NewQueue, Modules, Dict3).
 
@@ -99,8 +99,18 @@ init([]) ->
     AssetsDir = assets_dir(),
     filelib:ensure_dir(AssetsDir),
     {ok, Files} = file:list_dir(AssetsDir),
-    ModulesToBeMerged = [read_metadata(AssetsDir ++ "/" ++ F) || F <- Files ],
-    {ok, ModulesToBeMerged}.
+    Modules = lists:foldl(fun(F, ModulesIn) ->
+        Read = read_metadata(AssetsDir ++ "/" ++ F),
+        case lists:keyfind(Read#module.full_name, 2, ModulesIn) of
+            false -> 
+                [Read|ModulesIn];
+            MatchedModule -> 
+                NewReleases = Read#module.releases,
+                NewModule = MatchedModule#module{ releases = NewReleases ++ MatchedModule#module.releases},
+                lists:keyreplace(Read#module.full_name, 2, ModulesIn, NewModule)
+        end
+    end, [], Files),
+    {ok, Modules}.
 
 
 read_metadata(File) ->
@@ -116,6 +126,14 @@ read_metadata(File) ->
     FullName = element(2, lists:keyfind(<<"name">>, 1, Decoded)),
     [_, Name] = re:split(FullName, <<"-">>, [{return, binary}]),
     Version = element(2, lists:keyfind(<<"version">>, 1, Decoded)),
+    RawDependencies = element(2, lists:keyfind(<<"dependencies">>, 1, Decoded)),
+    Dependencies = [
+        [
+            element(2, lists:keyfind(<<"name">>, 1, element(1, D))), 
+            element(2, lists:keyfind(<<"version_requirement">>, 1, element(1, D)))
+        ] 
+            || D <- RawDependencies
+    ],
     FileName = ?FILE_NAME(Author, Name, Version),
     #module{
         author = Author,
@@ -123,7 +141,7 @@ read_metadata(File) ->
         full_name = ?FULL_NAME(Author, Name),
         desc = element(2, lists:keyfind(<<"description">>, 1, Decoded)),
         project_url = element(2, lists:keyfind(<<"project_page">>, 1, Decoded)),
-        releases = [#release{version=Version, file=FileName, dependencies=[]}], % TODO: dependencies
+        releases = [#release{version=Version, file=FileName, dependencies=Dependencies}],
         tag_list = [] % TODO: not in metadata, should be added to the post request. or /cares.
     }.
 
