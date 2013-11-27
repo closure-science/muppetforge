@@ -11,7 +11,7 @@
 -record(release, {
     version, % {1.0.0}
     file, 
-    dependencies = [] % {FullName, Version} -> {"Mario/mario", [constraints]}
+    dependencies = [] % {FullName, [constraint_type()]} -> {"Mario/mario", [constraints]}
 }).
 
 -record(module, {
@@ -81,12 +81,18 @@ store_module(Module, Tarball, Modules) ->
     [Release] = Module#module.releases,
     AbsFileName = assets_dir() ++ binary_to_list(Release#release.file),
     ok = file:write_file(AbsFileName, Tarball),
+    merge_into_modules(Module, Modules).
+
+merge_into_modules(Module, Modules) ->
     case lists:keyfind(Module#module.full_name, 2, Modules) of
         false ->
             [Module| Modules];
         MatchedModule -> 
                 NewReleases = Module#module.releases,
-                NewModule = MatchedModule#module{ releases = NewReleases ++ MatchedModule#module.releases},
+                PurgedOldModules = lists:foldl(fun(NewRel, Acc) -> 
+                    lists:keydelete(NewRel#release.version, 2, Acc) 
+                end, MatchedModule#module.releases, NewReleases),
+                NewModule = MatchedModule#module{ releases = NewReleases ++ PurgedOldModules},
                 lists:keyreplace(Module#module.full_name, 2, Modules, NewModule)
     end.
 
@@ -113,14 +119,7 @@ init([]) ->
     {ok, Files} = file:list_dir(AssetsDir),
     Modules = lists:foldl(fun(F, ModulesIn) ->
         Read = read_metadata(AssetsDir ++ "/" ++ F),
-        case lists:keyfind(Read#module.full_name, 2, ModulesIn) of
-            false -> 
-                [Read|ModulesIn];
-            MatchedModule -> 
-                NewReleases = Read#module.releases,
-                NewModule = MatchedModule#module{ releases = NewReleases ++ MatchedModule#module.releases},
-                lists:keyreplace(Read#module.full_name, 2, ModulesIn, NewModule)
-        end
+        merge_into_modules(Read, ModulesIn)
     end, [], Files),
     {ok, Modules}.
 
@@ -213,17 +212,19 @@ module(Author, Name, Desc, ProjectUrl, Releases) ->
         % TODO: tag_list
     }.
 
+-spec serializable_module(#module{}) -> tuple(list()).
 serializable_module(Module) ->
+    [First|Others] = Module#module.releases,
     Latest = lists:foldl(fun(R, Max) ->
         versions:max(R#release.version, Max)
-    end, hd(Module#module.releases), tl(Module#module.releases)),
+    end, First#release.version, Others),
     {[
         {full_name, Module#module.full_name},
         {author, Module#module.author},
         {name, Module#module.name},
         {desc, Module#module.desc},
         {project_url, Module#module.project_url},
-        {version, Latest#release.version }, 
+        {version, versions:to_binary(Latest) }, 
         {releases, [serializable_release(R) || R <- Module#module.releases]},
         {tag_list, []}
     ]}.
