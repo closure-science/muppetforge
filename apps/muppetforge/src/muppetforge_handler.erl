@@ -35,20 +35,21 @@ handle(Req, {modules, <<"GET">>, []} = State) ->
     {ok, Req2, State};
 
 handle(Req, {deploy, <<"POST">>, [Body]} = State) ->
-    Got = muppet_repository:store_module(Body),
+    muppet_repository:store_module(Body),
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
     {ok, Req2, State};
 
 handle(Req, {releases, <<"GET">>, []} = State) ->
     {Query, _} = cowboy_req:qs_val(<<"module">>, Req),
     [Author, Module] = re:split(Query, "/", [{return, binary}]),
-    {Version, _} = cowboy_req:qs_val(<<"version">>, Req, any),    
-    Dict = muppet_repository:find_release({Author, Module}, Version),
+    {VersionConstraintsBin, _} = cowboy_req:qs_val(<<"version">>, Req, ""),  
+    VersionConstraints = versions:constraints(VersionConstraintsBin),
+    Dict = muppet_repository:find_release({Author, Module}, VersionConstraints),
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(muppet_repository:serializable_releases(Dict)), Req),
     {ok, Req2, State};
 
 handle(Req, {_, Method, _} = State) ->
-    {ok, Req2} = cowboy_req:reply(405, ?HEADERS, jiffy:encode([<<"unsupported method">>, list_to_binary(io_lib:format("~w", [State]))]), Req),
+    {ok, Req2} = cowboy_req:reply(405, ?HEADERS, jiffy:encode([<<"unsupported method">>, Method]), Req),
     {ok, Req2, State}.
 
 

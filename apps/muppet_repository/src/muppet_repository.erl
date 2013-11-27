@@ -9,9 +9,9 @@
 -define(FILE_NAME(Author, ModuleName, Version), << <<"/">>/binary , Author/binary, <<"-">>/binary, ModuleName/binary, <<"-">>/binary, Version/binary, <<".tar.gz">>/binary >>).
 
 -record(release, {
-    version,
+    version, % {1.0.0}
     file, 
-    dependencies = [] % [FullName, Version] -> ["Mario/mario", "0.1.1"]
+    dependencies = [] % {FullName, Version} -> {"Mario/mario", [constraints]}
 }).
 
 -record(module, {
@@ -37,18 +37,18 @@ assets_dir() ->
     code:priv_dir(?MODULE) ++ "/assets".
 
 
-find_release({Author, Name}, Version) ->
-    gen_server:call(?MODULE, {find_release, Author, Name, Version}).
+find_release({Author, Name}, VersionConstraints) ->
+    gen_server:call(?MODULE, {find_release, Author, Name, VersionConstraints}).
 %% priv
-find_release([], Modules, Dict) ->
+find_release([], _Modules, Dict) ->
     Dict;
-find_release([[FullName, Version]|Others], Modules, Dict) ->
+find_release([{FullName, VersionConstraints}|Others], Modules, Dict) ->
     Dict2 = case dict:is_key(FullName, Dict) of 
         false -> dict:store(FullName, sets:new(), Dict);
         _ -> Dict
     end,
     {true, Module} = find(Modules, FullName),
-    ViableReleases = search_matching_versions(Module#module.releases, Version),
+    ViableReleases = search_matching_versions(Module#module.releases, VersionConstraints),
     NewSet = sets:union(ViableReleases, dict:fetch(FullName, Dict2)),
     Dict3 = dict:store(FullName, NewSet, Dict2),
     NewDependencies = sets:from_list(lists:append([V#release.dependencies || V <- sets:to_list(ViableReleases)])),
@@ -56,11 +56,9 @@ find_release([[FullName, Version]|Others], Modules, Dict) ->
     find_release(NewQueue, Modules, Dict3).
 
 
-search_matching_versions(Releases, any) ->
-    sets:from_list(Releases);
-search_matching_versions(Releases, Version) ->
+search_matching_versions(Releases, VersionConstraints) ->
     sets:from_list(lists:filter(fun(R) -> 
-        R#release.version =:= Version
+        versions:matches(VersionConstraints, R#release.version)
     end, Releases)).
 
 
@@ -99,7 +97,7 @@ search(Modules, Terms) ->
     search(Modules, Terms,[]).
 search(Modules, [], _) ->
     Modules;
-search([], Terms, Matching) ->
+search([], _Terms, Matching) ->
     Matching;
 search([Module|Rest], Terms, Matching) ->
     case binary:match(Module#module.full_name, Terms) of
@@ -136,53 +134,55 @@ read_metadata(File) ->
     end,    
     {ok, [{_, BinaryJson}]} = erl_tar:extract(File, [memory, compressed, {files,[CleanDirName++"metadata.json"]}]),
     {Decoded} = jiffy:decode(BinaryJson),
-    Author = element(2, lists:keyfind(<<"author">>, 1, Decoded)),
-    FullName = element(2, lists:keyfind(<<"name">>, 1, Decoded)),
-    [_, Name] = re:split(FullName, <<"-">>, [{return, binary}]), % TODO: could be / too. anyway doc say to use "-"
-    Version = element(2, lists:keyfind(<<"version">>, 1, Decoded)),
-    RawDependencies = element(2, lists:keyfind(<<"dependencies">>, 1, Decoded)),
+    Author = proplists:get_value(<<"author">>, Decoded),
+    FullName = proplists:get_value(<<"name">>, Decoded),
+    [_, Name] = re:split(FullName, <<"[\\-/]">>, [{return, binary}]),
+    BinaryVersion = proplists:get_value(<<"version">>, Decoded),
+    Version = versions:version(BinaryVersion),
+
+    RawDependencies = proplists:get_value(<<"dependencies">>, Decoded),
     Dependencies = [
-        [
-            element(2, lists:keyfind(<<"name">>, 1, element(1, D))), 
-            element(2, lists:keyfind(<<"version_requirement">>, 1, element(1, D)))
-        ] 
+        {
+            proplists:get_value(<<"name">>, element(1, D)), 
+            versions:constraints(proplists:get_value(<<"version_requirement">>, element(1, D)))
+        } 
             || D <- RawDependencies
     ],
-    FileName = ?FILE_NAME(Author, Name, Version),
+    FileName = ?FILE_NAME(Author, Name, BinaryVersion),
     #module{
         author = Author,
         name = Name,
         full_name = ?FULL_NAME(Author, Name),
-        desc = element(2, lists:keyfind(<<"description">>, 1, Decoded)),
-        project_url = element(2, lists:keyfind(<<"project_page">>, 1, Decoded)),
+        desc = proplists:get_value(<<"description">>, Decoded),
+        project_url = proplists:get_value(<<"project_page">>, Decoded),
         releases = [#release{version=Version, file=FileName, dependencies=Dependencies}],
         tag_list = [] % TODO: not in metadata, should be added to the post request. or /cares.
     }.
 
 
-handle_cast(Request, State) ->
+handle_cast(_Request, State) ->
     {noreply, State}.
 
-handle_call({add_module, Module}, From, State) ->
+handle_call({add_module, Module}, _From, State) ->
     % TODO: precond(does not exist)
     {reply, ok, [Module|State]};
-handle_call({find_module, FullName}, From, State) ->
+handle_call({find_module, FullName}, _From, State) ->
     Result = find(State, FullName),
     {reply, Result, State};
-handle_call({search_modules, Terms}, From, State) ->
+handle_call({search_modules, Terms}, _From, State) ->
     Result = search(State, Terms),
     {reply, Result, State};
-handle_call({find_release, Author, Name, Version}, From, State) ->
-    Result = find_release([[?FULL_NAME(Author, Name), Version]], State, dict:new()),
+handle_call({find_release, Author, Name, VersionConstraints}, _From, State) ->
+    Result = find_release([{?FULL_NAME(Author, Name), VersionConstraints}], State, dict:new()),
     {reply, Result, State};
-handle_call({store_module, Tarball}, From, State) ->
+handle_call({store_module, Tarball}, _From, State) ->
     Module = read_metadata({binary, Tarball}),
     NewState = store_module(Module, Tarball, State),
     {reply, ok, NewState};
-handle_call(status, From, State) ->
+handle_call(status, _From, State) ->
     {reply, State, State}.
 
-handle_info(Info, State) ->
+handle_info(_Info, State) ->
     {noreply, State}.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -214,23 +214,25 @@ module(Author, Name, Desc, ProjectUrl, Releases) ->
     }.
 
 serializable_module(Module) ->
-    Latest = hd(Module#module.releases),
+    Latest = lists:foldl(fun(R, Max) ->
+        versions:max(R#release.version, Max)
+    end, hd(Module#module.releases), tl(Module#module.releases)),
     {[
         {full_name, Module#module.full_name},
         {author, Module#module.author},
         {name, Module#module.name},
         {desc, Module#module.desc},
         {project_url, Module#module.project_url},
-        {version, Latest#release.version }, % TODO: check order
+        {version, Latest#release.version }, 
         {releases, [serializable_release(R) || R <- Module#module.releases]},
         {tag_list, []}
     ]}.
 
 serializable_release(Release) ->
     {[
-        {version, Release#release.version},
+        {version, versions:to_binary(Release#release.version)},
         {file, Release#release.file}, 
-        {dependencies, Release#release.dependencies}
+        {dependencies, [[element(1, D), versions:to_binary(element(2, D))] || D <- Release#release.dependencies ]}
     ]}.
 
 serializable_releases(Releases) ->
