@@ -75,8 +75,22 @@ find([Module|T], FullName) ->
 find([], FullName) ->
     {false, FullName}.
 
+store_module(Tarball) ->
+    gen_server:call(?MODULE, {store_module, Tarball}).
 
-
+store_module(Module, Tarball, Modules) ->
+    % TODO: split save_tarball from add_metadata (also used in init state loading)
+    [Release] = Module#module.releases,
+    AbsFileName = assets_dir() ++ binary_to_list(Release#release.file),
+    ok = file:write_file(AbsFileName, Tarball),
+    case lists:keyfind(Module#module.full_name, 2, Modules) of
+        false ->
+            [Module| Modules];
+        MatchedModule -> 
+                NewReleases = Module#module.releases,
+                NewModule = MatchedModule#module{ releases = NewReleases ++ MatchedModule#module.releases},
+                lists:keyreplace(Module#module.full_name, 2, Modules, NewModule)
+    end.
 
 search(Terms) ->
     gen_server:call(?MODULE, {search_modules, Terms}).
@@ -97,7 +111,7 @@ search([Module|Rest], Terms, Matching) ->
 
 init([]) ->
     AssetsDir = assets_dir(),
-    filelib:ensure_dir(AssetsDir),
+    filelib:ensure_dir(AssetsDir ++ "/anyname"),
     {ok, Files} = file:list_dir(AssetsDir),
     Modules = lists:foldl(fun(F, ModulesIn) ->
         Read = read_metadata(AssetsDir ++ "/" ++ F),
@@ -124,7 +138,7 @@ read_metadata(File) ->
     {Decoded} = jiffy:decode(BinaryJson),
     Author = element(2, lists:keyfind(<<"author">>, 1, Decoded)),
     FullName = element(2, lists:keyfind(<<"name">>, 1, Decoded)),
-    [_, Name] = re:split(FullName, <<"-">>, [{return, binary}]),
+    [_, Name] = re:split(FullName, <<"-">>, [{return, binary}]), % TODO: could be / too. anyway doc say to use "-"
     Version = element(2, lists:keyfind(<<"version">>, 1, Decoded)),
     RawDependencies = element(2, lists:keyfind(<<"dependencies">>, 1, Decoded)),
     Dependencies = [
@@ -161,6 +175,10 @@ handle_call({search_modules, Terms}, From, State) ->
 handle_call({find_release, Author, Name, Version}, From, State) ->
     Result = find_release([[?FULL_NAME(Author, Name), Version]], State, dict:new()),
     {reply, Result, State};
+handle_call({store_module, Tarball}, From, State) ->
+    Module = read_metadata({binary, Tarball}),
+    NewState = store_module(Module, Tarball, State),
+    {reply, ok, NewState};
 handle_call(status, From, State) ->
     {reply, State, State}.
 

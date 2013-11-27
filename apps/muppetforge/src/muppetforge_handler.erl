@@ -35,7 +35,7 @@ handle(Req, {modules, <<"GET">>, []} = State) ->
     {ok, Req2, State};
 
 handle(Req, {deploy, <<"POST">>, [Body]} = State) ->
-    Got = muppet_repository:read_metadata({binary , Body}),
+    Got = muppet_repository:store_module(Body),
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
     {ok, Req2, State};
 
