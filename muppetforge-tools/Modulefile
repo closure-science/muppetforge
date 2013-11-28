@@ -1,0 +1,8 @@
+name    'muppetforge-tools'
+version '0.0.1'
+source 'TODO hg revision here'
+author 'muppetforge'
+license ''
+summary 'muppetforge puppet tools'
+description 'puppet extensions to better integrate with muppetforge'
+project_page 'TODO: put github here'
