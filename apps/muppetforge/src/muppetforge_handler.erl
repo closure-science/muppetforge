@@ -24,18 +24,18 @@ init({tcp, http}, Req, [releases]) ->
 
 handle(Req, {module, <<"GET">>, [Author, ModuleName]} = State) ->
     {true, Module} = muppet_repository:find(<<Author/binary, <<"/">>/binary, ModuleName/binary>>),
-    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(muppet_repository:serializable_module(Module)), Req),
+    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(muppet_driver:serializable(Module)), Req),
     {ok, Req2, State};
 
 handle(Req, {modules, <<"GET">>, []} = State) ->
     {Query, _} = cowboy_req:qs_val(<<"q">>, Req, <<"">>),
     Modules = muppet_repository:search(query_terms(Query)),
-    Serializable = [muppet_repository:serializable_module(M) || M <- Modules],
+    Serializable = [muppet_driver:serializable(M) || M <- Modules],
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(Serializable), Req),
     {ok, Req2, State};
 
-handle(Req, {deploy, <<"POST">>, [Body]} = State) ->
-    muppet_repository:store_module(Body),
+handle(Req, {deploy, <<"POST">>, [TarballBinary]} = State) ->
+    muppet_repository:store(TarballBinary),
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
     {ok, Req2, State};
 
@@ -45,7 +45,7 @@ handle(Req, {releases, <<"GET">>, []} = State) ->
     {VersionConstraintsBin, _} = cowboy_req:qs_val(<<"version">>, Req, ""),  
     VersionConstraints = versions:constraints(VersionConstraintsBin),
     Dict = muppet_repository:find_release({Author, Module}, VersionConstraints),
-    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(muppet_repository:serializable_releases(Dict)), Req),
+    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(muppet_driver:serializable(Dict)), Req),
     {ok, Req2, State};
 
 handle(Req, {_, Method, _} = State) ->

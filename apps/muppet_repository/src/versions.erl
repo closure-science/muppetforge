@@ -8,18 +8,15 @@
 
 -export_type([version_type/0, version_op/0, constraint_type/0]).
 
--spec constraints( string() | binary() ) -> [constraint_type()].
--spec version( binary()) -> version_type().
--spec matches( [constraint_type()], version_type()) -> boolean().
--spec max( version_type(), version_type()) -> version_type().
--spec to_binary( version_type() | [constraint_type()] ) -> binary().
--spec to_string( version_type() | [constraint_type()] ) -> string().
 
+
+-spec to_binary( version_type() | [constraint_type()] ) -> binary().
 to_binary(Version) when is_tuple(Version)->
     bin(Version);
 to_binary(Constraints) ->
     bin_join( lists:map(fun bin/1, Constraints), <<" ">>).
 
+-spec to_string( version_type() | [constraint_type()] ) -> string().
 to_string(E) ->
     binary_to_list(to_binary(E)).
 
@@ -37,6 +34,7 @@ bin({Op, Version}) ->
     BinOp =bin(Op), 
     BinVer = bin(Version),
     << BinOp/binary, BinVer/binary >>.
+
     
 bin_join([], _Sep) ->
     <<>>;
@@ -45,17 +43,19 @@ bin_join([H|T], Sep) ->
     lists:foldl(fun(B, Acc) -> <<Acc/binary, B/binary>> end, H, Suffixed).
 
 
+-spec version( binary()) -> version_type().
 version(StrOrBinary)->
     {_Len, Version} = version_tuple_from_stream(StrOrBinary),
     Version.
 
+-spec max( version_type(), version_type()) -> version_type().
 max(Lhs, Rhs) ->
     case compare(gte, Lhs, Rhs) of
         true -> Lhs;
         _ -> Rhs
     end.
 
-
+-spec matches( [constraint_type()], version_type()) -> boolean().
 matches([], _Version) ->
     true;
 matches(Constraints, {Major, Minor, Patch}) ->
@@ -85,7 +85,7 @@ compare(lte, LHS, RHS) ->
     compare(eq, LHS, RHS) orelse compare(lt, LHS, RHS).
 
 
-
+-spec constraints( string() | binary() ) -> [constraint_type()].
 constraints(ConstraintsBin) when is_binary(ConstraintsBin) ->
     constraints(binary_to_list(ConstraintsBin));
 constraints(ConstraintsStr) ->
