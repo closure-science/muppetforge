@@ -6,8 +6,6 @@
 -export([start_link/0]).
 
 
-
-%% --
 -spec start_link() -> {ok,pid()} | ignore | {error, {already_started, pid()} | term()}.
 start_link() ->
     process_flag(trap_exit, true),
@@ -39,7 +37,7 @@ status() ->
 
 
 init([]) ->
-    filelib:ensure_dir(assets_dir() ++ "/anyname"),
+    filelib:ensure_dir(filename:join(assets_dir(), "anyname")),
     State = muppet_driver:new(assets_dir()),
     {ok, State}.
 
