@@ -85,7 +85,9 @@ compare(lte, LHS, RHS) ->
     compare(eq, LHS, RHS) orelse compare(lt, LHS, RHS).
 
 
--spec constraints( string() | binary() ) -> [constraint_type()].
+-spec constraints( undefined | string() | binary() ) -> [constraint_type()].
+constraints(undefined) ->
+    [];
 constraints(ConstraintsBin) when is_binary(ConstraintsBin) ->
     constraints(binary_to_list(ConstraintsBin));
 constraints(ConstraintsStr) ->
@@ -115,13 +117,20 @@ tokenize([$> | Rest], Accum, default) ->
 tokenize([$< | Rest], Accum, default) ->
     tokenize(Rest, Accum ++ [lt], version);
 
+tokenize([$~ | Rest], Accum, default) ->
+    % ~3 is an alias for 3.x
+    % ~3.2 is an alias for 3.2.x
+    tokenize(Rest, Accum, circa);
+
+
+tokenize(Stream, Accum, circa) ->
+    {match, [All|Parts]} = re:run(Stream, "(\\d+)(?:\\.(\\d+))?", [{capture, all, list}]),
+    Versions = wildcard_to_tokens(Parts),
+    tokenize(lists:nthtail(length(All), Stream) , Accum ++ Versions, default);    
 tokenize(Stream, Accum, default) ->
-    case re:run(Stream, "(\\d+)(?:\\.(\\d+))?\\.x", [{capture, all, list}]) of
-        {match, [All|Parts]} ->
-            Versions = wildcard_to_tokens(Parts),
-            tokenize(lists:nthtail(length(All), Stream) , Accum ++ Versions, default);
-        nomatch -> 
-            tokenize(Stream, Accum ++ [eq], version)
+    case re:run(Stream, "\\d+(?:\\.\\d+)?\\.x", [{capture, none}]) of
+        match   -> tokenize(Stream, Accum, circa);
+        nomatch -> tokenize(Stream, Accum ++ [eq], version)
     end;
 tokenize(Stream, Accum, version) ->
     {Size, Version} = version_tuple_from_stream(Stream),

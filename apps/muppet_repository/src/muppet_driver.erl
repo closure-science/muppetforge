@@ -1,5 +1,5 @@
 -module(muppet_driver).
--export([new/0, new/1, find_release/4, find/2, store/3, search/2, serializable/1]).
+-export([new/0, new/1, mirror/3, find_release/4, find/2, store/3, search/2, serializable/1]).
 
 -define(FULL_NAME(Author, ModuleName), <<Author/binary, <<"/">>/binary, ModuleName/binary>>).
 -define(FILE_NAME(Author, ModuleName, Version), << <<"/">>/binary , Author/binary, <<"-">>/binary, ModuleName/binary, <<"-">>/binary, Version/binary, <<".tar.gz">>/binary >>).
@@ -14,21 +14,47 @@
 -spec serializable(module_type() | dict()) -> tuple(list()).
 -export_type([module_type/0]).
 
--spec new() -> state().
--spec new(string()) -> state().
--spec find_release(state(), binary(), binary(), [versions:constraint_type()]) -> dict().
--spec find(state(), binary()) -> {true, module_type()} | {false, binary()}.
--spec store(state(), string(), binary()) -> state().
--spec search(state(), [binary()]) -> [module_type()].
 
+-spec new() -> state().
 new() ->
     [].
 
+-spec new(string()) -> state().
 new(AssetsDir) ->
     filelib:fold_files(AssetsDir, "\\.tar\\.gz", false, fun(FileName, ModulesIn) ->
         merge_into_modules(read_metadata(FileName), ModulesIn)
     end, []).
 
+mirror(Modules, AssetsDir, BaseUrl) ->
+    {ok, {{_, 200, _}, Headers, Body}} = httpc:request(BaseUrl ++ "/modules.json"),
+    DecodedModules = jiffy:decode(Body),
+    ToBeFetched = lists:map(fun({M}) ->
+        proplists:get_value(<<"full_name">>, M)
+    end, DecodedModules),
+    lists:foldl(fun(FullName, Acc) -> 
+        io:format("[+] fetching ~p~n", [FullName]),
+        {ok, {{_, 200, _}, _, RelBody}} = httpc:request(BaseUrl ++ "/api/v1/releases.json?module="++ binary_to_list(FullName)),
+        {DecodedBody} = jiffy:decode(RelBody),
+        Releases = proplists:get_value(FullName, DecodedBody),
+        RemoteFileNames = [pluck_file_(R) || R <- Releases],
+        lists:foldl(fun(RemoteFileName, InnerAcc) ->
+            try 
+                io:format("   [-] fetching tarball: ~p~n", [RemoteFileName]),
+                {ok, {{_, 200, _}, _, TarBody}} = httpc:request(get, {BaseUrl ++ RemoteFileName, []}, [], [{body_format, binary}]),
+                store(InnerAcc, AssetsDir, TarBody)
+            catch
+                Ex:Reason -> 
+                    io:format("skipped ~p, malformed: ~p~p~n", [RemoteFileName, Ex, Reason]),
+                    InnerAcc
+            end
+        end, Acc, RemoteFileNames)
+    end, Modules, ToBeFetched).
+
+pluck_file_({Rel}) ->
+    binary_to_list(proplists:get_value(<<"file">>, Rel)).
+
+
+-spec find_release(state(), binary(), binary(), [versions:constraint_type()]) -> dict().
 find_release(Modules, Author, Name, Constraints) ->
     find_release(Modules, [{?FULL_NAME(Author, Name), Constraints}], dict:new()).
 
@@ -49,6 +75,8 @@ find_release(Modules, [{FullName, VersionConstraints}|Others], Dict) ->
     NewQueue = sets:to_list(sets:union(NewDependencies,sets:from_list(Others))),
     find_release(Modules, NewQueue, Dict3).
 
+
+-spec find(state(), binary()) -> {true, module_type()} | {false, binary()}.
 find([Module|T], FullName) ->
     case binary:match(Module#module.full_name, FullName) of
         nomatch -> find(T, FullName);
@@ -57,6 +85,8 @@ find([Module|T], FullName) ->
 find([], FullName) ->
     {false, FullName}.
 
+
+-spec store(state(), string(), binary()) -> state().
 store(Modules, AssetsDir, Tarball) ->
     Module = read_metadata({binary, Tarball}), 
     [Release] = Module#module.releases,
@@ -77,6 +107,7 @@ merge_into_modules(Module, Modules) ->
                 lists:keyreplace(Module#module.full_name, 2, Modules, NewModule)
     end.
 
+-spec search(state(), [binary()]) -> [module_type()].
 search(Modules, Terms) ->
     search(Modules, Terms,[]).
 search(Modules, [], _) ->
@@ -91,15 +122,12 @@ search([Module|Rest], Terms, Matching) ->
 
 
 
-
 read_metadata(File) ->
-    {ok, FileNamesInTar} = erl_tar:table(File, [compressed]),
-    MetadataFileName = filename:join([hd(FileNamesInTar), "metadata.json"]),
+    {ok, MetadataFileName} = find_metadata_file_in_tarball(File),
     {ok, [{_, BinaryJson}]} = erl_tar:extract(File, [memory, compressed, {files,[MetadataFileName]}]),
     {Decoded} = jiffy:decode(BinaryJson),
-    Author = proplists:get_value(<<"author">>, Decoded),
     FullName = proplists:get_value(<<"name">>, Decoded),
-    [_, Name] = re:split(FullName, <<"[\\-/]">>, [{return, binary}]),
+    {match, [Author, Name]} = re:run(FullName, <<"(.*)[\\-/](.*?)">>, [{capture, all_but_first, binary}]),
     BinaryVersion = proplists:get_value(<<"version">>, Decoded),
     Version = versions:version(BinaryVersion),
 
@@ -122,7 +150,14 @@ read_metadata(File) ->
         tag_list = [] % TODO: not in metadata, should be added to the post request. or /cares.
     }.
 
-
+find_metadata_file_in_tarball(File) ->
+    {ok, FileNamesInTar} = erl_tar:table(File, [compressed]),
+    lists:foldl(fun(CurrentFile, Res) -> 
+        case re:run(CurrentFile, "^[^/]+/metadata.json$", [{capture, all, list}]) of
+            {match, [NewRes]} -> {ok, NewRes};
+            _ -> Res
+        end
+    end, {metadata_not_present, FileNamesInTar}, FileNamesInTar).
 
 
 
