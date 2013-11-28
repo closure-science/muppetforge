@@ -3,8 +3,9 @@
 -behaviour(gen_server).
 -export([init/1, handle_cast/2, handle_call/3, handle_info/2, code_change/3, terminate/2]).
 
--export([find/1, search/1, assets_dir/0]).
+-export([find/1, search/1, assets_dir/0, find_release/2, store_module/1, serializable_module/1, serializable_releases/1]).
 -export([start_link/0]).
+
 -define(FULL_NAME(Author, ModuleName), <<Author/binary, <<"/">>/binary, ModuleName/binary>>).
 -define(FILE_NAME(Author, ModuleName, Version), << <<"/">>/binary , Author/binary, <<"-">>/binary, ModuleName/binary, <<"-">>/binary, Version/binary, <<".tar.gz">>/binary >>).
 
@@ -24,14 +25,18 @@
     tag_list = []
 }).
 
-
--compile(export_all).
-
-%public interface
+-type module_type() :: #module{}.
+-spec find_release({binary(), binary()}, [ versions:constraint_type() ]) -> dict().
+-spec find(binary()) -> {true, module_type()} | {false, binary()}.
+-spec assets_dir() -> [char()].
+-spec store_module( binary() ) -> [module_type()].
+-spec serializable_module(module_type()) -> tuple(list()).
+-spec serializable_releases(dict()) -> tuple(list()).
 
 start_link() ->
     process_flag(trap_exit, true),
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
 
 assets_dir() ->
     code:priv_dir(?MODULE) ++ "/assets".
@@ -62,6 +67,7 @@ search_matching_versions(Releases, VersionConstraints) ->
     end, Releases)).
 
 
+
 find(FullName) ->
     gen_server:call(?MODULE, {find_module, FullName}).
 %% priv
@@ -72,6 +78,8 @@ find([Module|T], FullName) ->
     end;
 find([], FullName) ->
     {false, FullName}.
+
+
 
 store_module(Tarball) ->
     gen_server:call(?MODULE, {store_module, Tarball}).
@@ -190,29 +198,7 @@ code_change(_OldVsn, State, _Extra) ->
 terminate(_Reason, _State) ->
     ok.
 
-dependency(FullName, Version) ->
-    [FullName, Version].
 
-
-release(Version, File, Dependencies) ->
-    #release {
-        version = Version,
-        file = File,
-        dependencies = Dependencies
-    }.
-
-module(Author, Name, Desc, ProjectUrl, Releases) ->
-    #module{
-        full_name = ?FULL_NAME(Author, Name),
-        author = Author,
-        name = Name,
-        desc = Desc,
-        project_url = ProjectUrl,
-        releases = Releases
-        % TODO: tag_list
-    }.
-
--spec serializable_module(#module{}) -> tuple(list()).
 serializable_module(Module) ->
     [First|Others] = Module#module.releases,
     Latest = lists:foldl(fun(R, Max) ->

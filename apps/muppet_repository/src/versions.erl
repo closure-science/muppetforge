@@ -1,32 +1,48 @@
 -module(versions).
--export([constraints/1, matches/2, max/2, version/1, to_binary/1]).
+-export([constraints/1, matches/2, max/2, version/1, to_binary/1, to_string/1]).
 
 
--type version_tuple() :: {Major::integer(), Minor::integer(), Patch::integer()}.
+-type version_type() :: {Major::integer(), Minor::integer(), Patch::integer()}.
 -type version_op() :: eq | lt | gt | lte | gte.
--type constraint_type() :: {version_op(), version_tuple()}.
+-type constraint_type() :: {version_op(), version_type()}.
+
+-export_type([version_type/0, version_op/0, constraint_type/0]).
 
 -spec constraints( string() | binary() ) -> [constraint_type()].
--spec version( binary()) -> version_tuple().
--spec matches( [constraint_type()], version_tuple()) -> boolean().
--spec max( version_tuple(), version_tuple()) -> version_tuple().
--spec to_binary( version_tuple() | [constraint_type()] ) -> binary().
+-spec version( binary()) -> version_type().
+-spec matches( [constraint_type()], version_type()) -> boolean().
+-spec max( version_type(), version_type()) -> version_type().
+-spec to_binary( version_type() | [constraint_type()] ) -> binary().
+-spec to_string( version_type() | [constraint_type()] ) -> string().
 
 to_binary(Version) when is_tuple(Version)->
-    list_to_binary(to_string(Version));
+    bin(Version);
 to_binary(Constraints) ->
-    list_to_binary(string:join(lists:map(fun to_string/1, Constraints), " ")).
+    bin_join( lists:map(fun bin/1, Constraints), <<" ">>).
 
-to_string(eq) -> "";
-to_string(lt) -> "<";
-to_string(lte) -> "<=";
-to_string(gt) -> ">";
-to_string(gte) -> ">=";
-to_string({Ma, Mi, Pa}) ->
-    io_lib:format("~w.~w.~w", [Ma,Mi,Pa]);
-to_string({Op, Version}) ->
-    to_string(Op) ++ to_string(Version).
+to_string(E) ->
+    binary_to_list(to_binary(E)).
+
+bin(eq) -> <<>>;
+bin(lt) -> <<"<">>;
+bin(lte) -> <<"<=">>;
+bin(gt) -> <<">">>;
+bin(gte) -> <<">=">>;
+bin({Major, Minor, Patch}) ->
+    Maj = integer_to_binary(Major),
+    Min = integer_to_binary(Minor),
+    Pat = integer_to_binary(Patch), 
+    << Maj/binary, <<".">>/binary, Min/binary, <<".">>/binary, Pat/binary >>;
+bin({Op, Version}) ->
+    BinOp =bin(Op), 
+    BinVer = bin(Version),
+    << BinOp/binary, BinVer/binary >>.
     
+bin_join([], _Sep) ->
+    <<>>;
+bin_join([H|T], Sep) ->
+    Suffixed = [<<Sep/binary, X/binary>> || X <- T],
+    lists:foldl(fun(B, Acc) -> <<Acc/binary, B/binary>> end, H, Suffixed).
 
 
 version(StrOrBinary)->
