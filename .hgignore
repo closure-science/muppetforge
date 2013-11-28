@@ -5,3 +5,4 @@
 ^.deps_plt
 \.beam$
 \.app$
+.idea
