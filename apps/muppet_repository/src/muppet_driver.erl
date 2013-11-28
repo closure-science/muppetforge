@@ -127,7 +127,7 @@ read_metadata(File) ->
     {ok, [{_, BinaryJson}]} = erl_tar:extract(File, [memory, compressed, {files,[MetadataFileName]}]),
     {Decoded} = jiffy:decode(BinaryJson),
     FullName = proplists:get_value(<<"name">>, Decoded),
-    {match, [Author, Name]} = re:run(FullName, <<"(.*)[\\-/](.*?)">>, [{capture, all_but_first, binary}]),
+    {match, [Author, Name]} = re:run(FullName, <<"\\s*(.+)[\\-/](.+?)\\s*$">>, [{capture, all_but_first, binary}]),
     BinaryVersion = proplists:get_value(<<"version">>, Decoded),
     Version = versions:version(BinaryVersion),
 
