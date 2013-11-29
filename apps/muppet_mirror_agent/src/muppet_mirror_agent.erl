@@ -1,54 +1,60 @@
 -module(muppet_mirror_agent).
-
 -behaviour(gen_server).
 -export([init/1, handle_cast/2, handle_call/3, handle_info/2, code_change/3, terminate/2]).
 -export([start_link/0]).
+-export([set_upstream/1, set_retards/1, get_upstream/0, get_retards/0]).
 -define(TICK_INTERVAL, 100).
--define(TICK_INTERVAL_AFTER_SYNC, 30000).
 -define(REFRESH_INTERVAL_MICROS, 60 * 60* 1000* 1000 * 1000).
+-record(state, { retards = [], upstream = dict:new(), tbd = dict:new() }).
 
+% -----------------------------------------------------------------------------
 -spec start_link() -> {ok,pid()} | ignore | {error, {already_started, pid()} | term()}.
+% -----------------------------------------------------------------------------
 start_link() ->
     process_flag(trap_exit, true),
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 
--record(state, { retards = [], upstream = dict:new(), tbd = dict:new() }).
+% -----------------------------------------------------------------------------
+% -----------------------------------------------------------------------------
+set_upstream(BaseUrls) ->
+    gen_server:cast(?MODULE, {set_upstream, BaseUrls}).
 
--compile(export_all).
+get_upstream() ->
+    gen_server:call(?MODULE, get_upstream).
 
-test() ->
-    add_upstream("https://forge.puppetlabs.com").
-
-
-add_upstream(BaseUrl) ->
-    gen_server:cast(?MODULE, {add_upstream, BaseUrl}).
-
-ban_retards(Retards) when is_list(Retards) ->
-    gen_server:cast(?MODULE, {ban_retards, Retards}).
+% -----------------------------------------------------------------------------
+% -----------------------------------------------------------------------------
+set_retards(Retards) ->
+    gen_server:cast(?MODULE, {set_retards, Retards}).
+get_retards() ->
+    gen_server:call(?MODULE, get_retards).
 
 
 init([]) ->
     self() ! tick,
     {ok, #state{}}.
 
-handle_cast({add_upstream, BaseUrl}, State) ->
-    {noreply, State#state{ upstream = dict:store(BaseUrl, {0,0,0}, State#state.upstream) }};
-handle_cast({ban_retards, Retards}, State) ->
-    {noreply, State#state{ retards=Retards ++ State#state.retards }};
+handle_cast({set_upstream, BaseUrls}, State) ->
+    NewUpstream = dict:from_list([{BaseUrl, {0,0,0}} || BaseUrl <- BaseUrls]),
+    {noreply, State#state{ upstream = NewUpstream, tbd = [] }};
+handle_cast({set_retards, Retards}, State) ->
+    {noreply, State#state{ retards=Retards }};
 handle_cast(Req, State) ->
     {noreply, State}.
 
+handle_call(get_retards, From, State) ->
+    {reply, State#state.retards, State};
+handle_call(get_upstream, From, State) ->
+    {reply, State#state.upstream, State};
 handle_call(Req, From, State) ->
     {reply, ok, State}.
 
 handle_info(tick, State) ->
     {ShouldSleep, NewState} = do_something(State),
     case ShouldSleep of 
-        true  -> 
-            timer:send_after(10000, tick);
-        false -> 
-            self() ! tick
+        true  -> timer:send_after(?TICK_INTERVAL, tick);
+        false -> self() ! tick
     end,
     {noreply, NewState};
 

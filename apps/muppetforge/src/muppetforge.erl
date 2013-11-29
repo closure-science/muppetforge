@@ -1,7 +1,9 @@
 -module(muppetforge).
 -export([start_httpd/0]).
--spec start_httpd() -> {ok, pid()} | {error, any()}.
 
+% -----------------------------------------------------------------------------
+-spec start_httpd() -> {ok, pid()} | {error, any()}.
+% -----------------------------------------------------------------------------
 start_httpd() ->
     Dispatcher = cowboy_router:compile([
         {'_', [
