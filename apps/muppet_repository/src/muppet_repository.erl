@@ -15,15 +15,15 @@ start_link() ->
 assets_dir() -> 
     code:priv_dir(?MODULE) ++ "/assets".
 
--spec find_release({binary(), binary()}, [versions:constraint_type()] ) -> dict().
+-spec find_release({binary(), binary()}, [versions:constraint_type()] ) -> {ok, dict()} | {missing_dependency, FullName::binary()}.
 find_release({Author, Name}, VersionConstraints) ->
     gen_server:call(?MODULE, {find_release, Author, Name, VersionConstraints}).
 
--spec find(binary()) -> {true, muppet_driver:module_type()} | {false, binary()}.
+-spec find(binary()) -> {true, muppet_driver:module_type()} | {false, FullName::binary()}.
 find(FullName) ->
     gen_server:call(?MODULE, {find_module, FullName}).
 
--spec store( binary() ) -> [muppet_driver:module_type()].
+-spec store( binary() ) -> {ok, [muppet_driver:module_type()]} | {error, {Error::any(), Reason::any()}}.
 store(Tarball) ->
     gen_server:call(?MODULE, {store_module, Tarball}).
 

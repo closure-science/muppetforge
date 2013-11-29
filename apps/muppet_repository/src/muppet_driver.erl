@@ -11,24 +11,34 @@
 
 -type module_type() :: #module{}.
 -type state() :: [module_type()].
--spec serializable(module_type() | dict()) -> tuple(list()).
 -export_type([module_type/0]).
 
 
+
+% -----------------------------------------------------------------------------
 -spec new() -> state().
+% -----------------------------------------------------------------------------
 new() ->
     [].
 
+% -----------------------------------------------------------------------------
 -spec new(string()) -> state().
+% -----------------------------------------------------------------------------
 new(AssetsDir) ->
     filelib:fold_files(AssetsDir, "\\.tar\\.gz", false, fun(FileName, ModulesIn) ->
         merge_into_modules(read_metadata(FileName), ModulesIn)
     end, []).
 
 
--spec find_release(state(), binary(), binary(), [versions:constraint_type()]) -> dict().
+% -----------------------------------------------------------------------------
+-spec find_release(state(), binary(), binary(), [versions:constraint_type()]) -> {ok, dict()} | {missing_dependency, FullName::binary()}.
+% -----------------------------------------------------------------------------
 find_release(Modules, Author, Name, Constraints) ->
-    find_release(Modules, [{?FULL_NAME(Author, Name), Constraints}], dict:new()).
+    try
+        find_release(Modules, [{?FULL_NAME(Author, Name), Constraints}], dict:new())
+    catch
+        throw:{missing_dependency, FullName } = R -> R
+    end.
 
 find_release(_Modules, [], Dict) ->
     Dict;
@@ -37,7 +47,10 @@ find_release(Modules, [{FullName, VersionConstraints}|Others], Dict) ->
         false -> dict:store(FullName, sets:new(), Dict);
         _ -> Dict
     end,
-    {true, Module} = find(Modules, FullName),
+    Module = case find(Modules, FullName) of 
+        {true, M} -> M;
+        {false, FullName} -> throw({missing_dependency, FullName})
+    end,
     ViableReleases = sets:from_list(lists:filter(fun(R) -> 
         versions:matches(VersionConstraints, R#release.version)
     end, Module#module.releases)),
@@ -48,7 +61,9 @@ find_release(Modules, [{FullName, VersionConstraints}|Others], Dict) ->
     find_release(Modules, NewQueue, Dict3).
 
 
--spec find(state(), binary()) -> {true, module_type()} | {false, binary()}.
+% -----------------------------------------------------------------------------
+-spec find(state(), binary()) -> {true, module_type()} | {false, FullName::binary()}.
+% -----------------------------------------------------------------------------
 find([Module|T], FullName) ->
     case binary:match(Module#module.full_name, FullName) of
         nomatch -> find(T, FullName);
@@ -58,13 +73,21 @@ find([], FullName) ->
     {false, FullName}.
 
 
--spec store(state(), string(), binary()) -> state().
+% -----------------------------------------------------------------------------
+-spec store(state(), string(), binary()) -> {ok, state()} | {error, any()}.
+% -----------------------------------------------------------------------------
 store(Modules, AssetsDir, Tarball) ->
-    Module = read_metadata({binary, Tarball}), 
-    [Release] = Module#module.releases,
-    AbsFileName = AssetsDir ++ binary_to_list(Release#release.file),
-    ok = file:write_file(AbsFileName, Tarball),
-    merge_into_modules(Module, Modules).
+    try
+        Module = read_metadata({binary, Tarball}), 
+        [Release] = Module#module.releases,
+        AbsFileName = AssetsDir ++ binary_to_list(Release#release.file),
+        ok = file:write_file(AbsFileName, Tarball),
+        NewModules = merge_into_modules(Module, Modules),
+        {ok, NewModules}
+    catch 
+        E:R ->  {error, {E, R}}
+    end.
+
 
 merge_into_modules(Module, Modules) ->
     case lists:keyfind(Module#module.full_name, 2, Modules) of
@@ -79,7 +102,9 @@ merge_into_modules(Module, Modules) ->
                 lists:keyreplace(Module#module.full_name, 2, Modules, NewModule)
     end.
 
+% -----------------------------------------------------------------------------
 -spec search(state(), [binary()]) -> [module_type()].
+% -----------------------------------------------------------------------------
 search(Modules, Terms) ->
     search(Modules, Terms,[]).
 search(Modules, [], _) ->
@@ -116,7 +141,7 @@ read_metadata(File) ->
         author = Author,
         name = Name,
         full_name = ?FULL_NAME(Author, Name),
-        desc = proplists:get_value(<<"description">>, Decoded),
+        desc = proplists:get_value(<<"summary">>, Decoded),
         project_url = proplists:get_value(<<"project_page">>, Decoded),
         releases = [#release{version=Version, file=FileName, dependencies=Dependencies}],
         tag_list = [] % TODO: not in metadata, should be added to the post request. or /cares.
@@ -133,6 +158,9 @@ find_metadata_file_in_tarball(File) ->
 
 
 
+% -----------------------------------------------------------------------------
+-spec serializable(module_type() | dict()) -> {[{atom(), any()}]}.
+% -----------------------------------------------------------------------------
 serializable(#module{} = Module) ->
     [First|Others] = Module#module.releases,
     Latest = lists:foldl(fun(R, Max) -> versions:max(R#release.version, Max) end, First#release.version, Others),
