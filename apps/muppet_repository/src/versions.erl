@@ -128,8 +128,10 @@ tokenize(Stream, Accum, circa) ->
     Versions = wildcard_to_tokens(Parts),
     tokenize(lists:nthtail(length(All), Stream) , Accum ++ Versions, default);    
 tokenize(Stream, Accum, default) ->
-    case re:run(Stream, "\\d+(?:\\.\\d+)?\\.x", [{capture, none}]) of
-        match   -> tokenize(Stream, Accum, circa);
+    case re:run(Stream, "(\\d+(?:\\.\\d+)?)\\.x", [{capture, all, list}]) of
+        {match, [All, AsCirca]}   -> 
+            Accum2 = tokenize(AsCirca, Accum, circa),
+            tokenize(lists:nthtail(length(All), Stream) , Accum2, default);
         nomatch -> tokenize(Stream, Accum ++ [eq], version)
     end;
 tokenize(Stream, Accum, version) ->
