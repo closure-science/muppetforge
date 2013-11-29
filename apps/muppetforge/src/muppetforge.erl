@@ -10,6 +10,9 @@ start_httpd() ->
             {"/mf/modules.json", muppetforge_handler, [modules]},
             {"/mf/api/v1/releases.json", muppetforge_handler, [releases]},
             {"/mf/api/deploy", muppetforge_handler, [deploy]},
+            {"/mf/api/blacklist", muppetforge_handler, [blacklist]},
+            {"/mf/api/upstream", muppetforge_handler, [upstream]},
+            {"/mf/api/errors", muppetforge_handler, [errors]},
             {"/mf/:author/:modulename", [{modulename, function, fun module_name/1}], muppetforge_handler, [module]},
             {"/mf/[...]", cowboy_static, {dir, muppet_repository:assets_dir() }},
             {"/", cowboy_static,  {file, code:priv_dir(muppetforge) ++ "/static/index.html"}},
@@ -26,5 +29,5 @@ module_name(ModuleNameAndJsonSuffix) ->
         true ->
             Prefix = binary:part(ModuleNameAndJsonSuffix, {0, Size - ExtensionSize}),
             {true, Prefix};
-        _ -> false
+        false -> false
     end.
