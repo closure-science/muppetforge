@@ -1,7 +1,8 @@
 -module(muppetforge_handler).
 -behaviour(cowboy_http_handler).
 -export([init/3, handle/2, terminate/3]).
--include("muppetforge.hrl").
+-define(HEADERS, [{<<"content-type">>, <<"application/json">>}]).
+
 
 init({tcp, http}, Req, [module]) ->
     {Method, _} = cowboy_req:method(Req),
@@ -23,8 +24,11 @@ init({tcp, http}, Req, [releases]) ->
     {ok, Req, {releases, Method, []}}.
 
 handle(Req, {module, <<"GET">>, [Author, ModuleName]} = State) ->
-    {true, Module} = muppet_repository:find(<<Author/binary, <<"/">>/binary, ModuleName/binary>>),
-    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(muppet_driver:serializable(Module)), Req),
+    {Code, Response} = case muppet_repository:find(<<Author/binary, <<"/">>/binary, ModuleName/binary>>) of
+        {true, Module} -> {200, muppet_driver:serializable(Module)};
+        {false, FullName} -> { 404, {[{module_not_found, FullName}]} }
+    end,
+    {ok, Req2} = cowboy_req:reply(Code, ?HEADERS, jiffy:encode(Response), Req),
     {ok, Req2, State};
 
 handle(Req, {modules, <<"GET">>, []} = State) ->
@@ -44,8 +48,11 @@ handle(Req, {releases, <<"GET">>, []} = State) ->
     [Author, Module] = re:split(Query, "/", [{return, binary}]),
     {VersionConstraintsBin, _} = cowboy_req:qs_val(<<"version">>, Req, ""),  
     VersionConstraints = versions:constraints(VersionConstraintsBin),
-    Dict = muppet_repository:find_release({Author, Module}, VersionConstraints),
-    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(muppet_driver:serializable(Dict)), Req),
+    {Code, Response} = case muppet_repository:find_release({Author, Module}, VersionConstraints) of
+        {ok, Dict} ->  {200, muppet_driver:serializable(Dict)};
+        {missing_dependency, _} = Error ->{ 500, {[Error]} }
+    end,
+    {ok, Req2} = cowboy_req:reply(Code, ?HEADERS, jiffy:encode(Response), Req),
     {ok, Req2, State};
 
 handle(Req, {_, Method, _} = State) ->

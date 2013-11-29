@@ -5,6 +5,7 @@
 -export([start_link/0]).
 -define(TICK_INTERVAL, 100).
 -define(TICK_INTERVAL_AFTER_SYNC, 30000).
+-define(REFRESH_INTERVAL_MICROS, 60 * 60* 1000* 1000 * 1000).
 
 -spec start_link() -> {ok,pid()} | ignore | {error, {already_started, pid()} | term()}.
 start_link() ->
@@ -12,16 +13,29 @@ start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 
--record(mirror_state, { url, refreshed_at = 0}).
--record(state, { poll_for = [], tbd = [] }).
-                                      
+-record(state, { retards = [], upstream = dict:new(), tbd = dict:new() }).
+
+-compile(export_all).
+
+test() ->
+    add_upstream("https://forge.puppetlabs.com").
+
+
+add_upstream(BaseUrl) ->
+    gen_server:cast(?MODULE, {add_upstream, BaseUrl}).
+
+ban_retards(Retards) when is_list(Retards) ->
+    gen_server:cast(?MODULE, {ban_retards, Retards}).
+
+
 init([]) ->
-    self() ! trigger,
+    self() ! tick,
     {ok, #state{}}.
 
-handle_cast({poll_for, Url}, State) ->
-    MirrorState = #mirror_state{url = Url},
-    {noreply, State#state{ poll_for = [MirrorState|State#state.poll_for] }};
+handle_cast({add_upstream, BaseUrl}, State) ->
+    {noreply, State#state{ upstream = dict:store(BaseUrl, {0,0,0}, State#state.upstream) }};
+handle_cast({ban_retards, Retards}, State) ->
+    {noreply, State#state{ retards=Retards ++ State#state.retards }};
 handle_cast(Req, State) ->
     {noreply, State}.
 
@@ -29,7 +43,15 @@ handle_call(Req, From, State) ->
     {reply, ok, State}.
 
 handle_info(tick, State) ->
-    {noreply, State};
+    {ShouldSleep, NewState} = do_something(State),
+    case ShouldSleep of 
+        true  -> 
+            timer:send_after(10000, tick);
+        false -> 
+            self() ! tick
+    end,
+    {noreply, NewState};
+
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -39,30 +61,60 @@ code_change(_OldVsn, State, _Extra) ->
 terminate(_Reason, State) ->
     ok.
 
-% mirror(Modules, AssetsDir, BaseUrl) ->
-%     {ok, {{_, 200, _}, Headers, Body}} = httpc:request(BaseUrl ++ "/modules.json"),
-%     DecodedModules = jiffy:decode(Body),
-%     ToBeFetched = lists:map(fun({M}) ->
-%         proplists:get_value(<<"full_name">>, M)
-%     end, DecodedModules),
-%     lists:foldl(fun(FullName, Acc) -> 
-%         io:format("[+] fetching ~p~n", [FullName]),
-%         {ok, {{_, 200, _}, _, RelBody}} = httpc:request(BaseUrl ++ "/api/v1/releases.json?module="++ binary_to_list(FullName)),
-%         {DecodedBody} = jiffy:decode(RelBody),
-%         Releases = proplists:get_value(FullName, DecodedBody),
-%         RemoteFileNames = [pluck_file_(R) || R <- Releases],
-%         lists:foldl(fun(RemoteFileName, InnerAcc) ->
-%             try 
-%                 io:format("   [-] fetching tarball: ~p~n", [RemoteFileName]),
-%                 {ok, {{_, 200, _}, _, TarBody}} = httpc:request(get, {BaseUrl ++ RemoteFileName, []}, [], [{body_format, binary}]),
-%                 store(InnerAcc, AssetsDir, TarBody)
-%             catch
-%                 Ex:Reason -> 
-%                     io:format("skipped ~p, malformed: ~p~p~n", [RemoteFileName, Ex, Reason]),
-%                     InnerAcc
-%             end
-%         end, Acc, RemoteFileNames)
-%     end, Modules, ToBeFetched).
 
-% pluck_file_({Rel}) ->
-%     binary_to_list(proplists:get_value(<<"file">>, Rel)).
+do_something(State) ->
+    case upstream_needing_refresh(State) of
+        {_, []} ->
+            case dict:fetch_keys(State#state.tbd) of
+                [] -> 
+                    {true, State};
+                [{FullName, Version} = Coords |_] ->
+                    BaseUrl = dict:fetch(Coords, State#state.tbd),
+                    TarballBinary = fetch_tarball_binary(BaseUrl, FullName, Version),
+                    {Outcome, Result} = muppet_repository:store(TarballBinary),
+                    if 
+                        Outcome =/= ok -> io:format("got an error ~p~n", [Result]);
+                        true -> ok
+                    end,
+                    NewTbd = dict:erase(Coords, State#state.tbd),
+                    {false, State#state{ tbd = NewTbd }}
+            end;
+        {Now, [UpstreamUrl| _]} ->
+            VersionsFromUpstream = fetch_versions(UpstreamUrl),
+            NewTbd = lists:foldl(fun({BaseUrl, {FullName, Version} = Coords}, Accum) ->
+                dict:store(Coords, BaseUrl, Accum)
+            end, State#state.tbd, VersionsFromUpstream),
+            {false, State#state{ upstream = dict:store(UpstreamUrl, Now, State#state.upstream), tbd=NewTbd }}
+    end.
+
+
+upstream_needing_refresh(State) ->
+    Now = now(),
+    Expired = dict:filter(fun(_UpstreamUrl, RefreshedAt) ->
+        timer:now_diff(Now, RefreshedAt) > ?REFRESH_INTERVAL_MICROS
+    end, State#state.upstream),
+    {Now, dict:fetch_keys(Expired) }.
+
+
+
+fetch_versions(BaseUrl) ->
+    {ok, {{_, 200, _}, Headers, Body}} = httpc:request(BaseUrl ++ "/modules.json"),
+    DecodedModules = jiffy:decode(Body),
+    ToBeFetched = lists:flatmap(fun({M}) ->
+        FullName = proplists:get_value(<<"full_name">>, M),
+        Releases = proplists:get_value(<<"releases">>, M),
+        [{BaseUrl, {FullName, proplists:get_value(<<"version">>, R) }} || {R} <- Releases]
+    end, DecodedModules).
+
+fetch_tarball_binary(BaseUrl, FullName, Version) ->
+    Url = BaseUrl ++ "/api/v1/releases.json?module="++binary_to_list(FullName)++"&version="++binary_to_list(Version),
+    io:format("fetching ~p~n", [Url]),
+    {ok, {{_, 200, _}, _, RelBody}} = httpc:request(Url),
+    {DecodedBody} = jiffy:decode(RelBody),
+    [Release] = proplists:get_value(FullName, DecodedBody),
+    RemoteFileName = pluck_file_(Release),
+    {ok, {{_, 200, _}, _, TarBody}} = httpc:request(get, {BaseUrl ++ RemoteFileName, []}, [], [{body_format, binary}]),
+    TarBody.
+
+pluck_file_({Rel}) ->
+    binary_to_list(proplists:get_value(<<"file">>, Rel)).
