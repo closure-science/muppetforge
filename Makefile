@@ -108,3 +108,9 @@ start:
 	rel/$(NODE)/bin/$(NODE) start
 console:
 	rel/${NODE}/bin/${NODE} console
+
+puppetmodule:
+	puppet module build muppetforge-integration
+	@mkdir -p apps/muppet_repository/priv/assets/
+	@echo "Copying muppetforge-integration packages to repository assets dir..."
+	@cp muppetforge-integration/pkg/muppetforge-integration-*.tar.gz apps/muppet_repository/priv/assets/

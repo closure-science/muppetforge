@@ -6,3 +6,5 @@
 \.beam$
 \.app$
 .idea
+^muppetforge-integration/pkg
+^apps/muppet_repository/priv/assets/
