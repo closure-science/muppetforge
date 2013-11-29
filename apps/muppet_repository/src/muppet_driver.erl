@@ -1,5 +1,5 @@
 -module(muppet_driver).
--export([new/0, new/1, mirror/3, find_release/4, find/2, store/3, search/2, serializable/1]).
+-export([new/0, new/1, find_release/4, find/2, store/3, search/2, serializable/1]).
 
 -define(FULL_NAME(Author, ModuleName), <<Author/binary, <<"/">>/binary, ModuleName/binary>>).
 -define(FILE_NAME(Author, ModuleName, Version), << <<"/">>/binary , Author/binary, <<"-">>/binary, ModuleName/binary, <<"-">>/binary, Version/binary, <<".tar.gz">>/binary >>).
@@ -24,34 +24,6 @@ new(AssetsDir) ->
     filelib:fold_files(AssetsDir, "\\.tar\\.gz", false, fun(FileName, ModulesIn) ->
         merge_into_modules(read_metadata(FileName), ModulesIn)
     end, []).
-
-mirror(Modules, AssetsDir, BaseUrl) ->
-    {ok, {{_, 200, _}, Headers, Body}} = httpc:request(BaseUrl ++ "/modules.json"),
-    DecodedModules = jiffy:decode(Body),
-    ToBeFetched = lists:map(fun({M}) ->
-        proplists:get_value(<<"full_name">>, M)
-    end, DecodedModules),
-    lists:foldl(fun(FullName, Acc) -> 
-        io:format("[+] fetching ~p~n", [FullName]),
-        {ok, {{_, 200, _}, _, RelBody}} = httpc:request(BaseUrl ++ "/api/v1/releases.json?module="++ binary_to_list(FullName)),
-        {DecodedBody} = jiffy:decode(RelBody),
-        Releases = proplists:get_value(FullName, DecodedBody),
-        RemoteFileNames = [pluck_file_(R) || R <- Releases],
-        lists:foldl(fun(RemoteFileName, InnerAcc) ->
-            try 
-                io:format("   [-] fetching tarball: ~p~n", [RemoteFileName]),
-                {ok, {{_, 200, _}, _, TarBody}} = httpc:request(get, {BaseUrl ++ RemoteFileName, []}, [], [{body_format, binary}]),
-                store(InnerAcc, AssetsDir, TarBody)
-            catch
-                Ex:Reason -> 
-                    io:format("skipped ~p, malformed: ~p~p~n", [RemoteFileName, Ex, Reason]),
-                    InnerAcc
-            end
-        end, Acc, RemoteFileNames)
-    end, Modules, ToBeFetched).
-
-pluck_file_({Rel}) ->
-    binary_to_list(proplists:get_value(<<"file">>, Rel)).
 
 
 -spec find_release(state(), binary(), binary(), [versions:constraint_type()]) -> dict().
