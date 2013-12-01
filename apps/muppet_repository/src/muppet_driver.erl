@@ -85,7 +85,7 @@ store(Modules, AssetsDir, Tarball) ->
         NewModules = merge_into_modules(Module, Modules),
         {ok, NewModules}
     catch 
-        E:R ->  {error, {E, R}}
+        Type:Reason ->  {error, {Type, Reason}}
     end.
 
 

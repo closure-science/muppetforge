@@ -58,7 +58,8 @@ handle(Req, {blacklist, <<"PUT">>}) ->
 
 handle(Req, {errors, <<"GET">>}) ->
     Errors = muppet_mirror_agent:fetch_errors(),
-    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(Errors), Req),
+    Serializable = muppet_mirror_agent:serializable_errors(Errors),
+    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(Serializable), Req),
     {ok, Req2, undefined};
 
 handle(Req, {errors, <<"DELETE">>}) ->
@@ -68,8 +69,9 @@ handle(Req, {errors, <<"DELETE">>}) ->
 
 
 handle(Req, {upstream, <<"GET">>}) ->
-    Upstream = muppet_mirror_agent:fetch_errors(),
-    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(Upstream), Req),
+    Upstream = muppet_mirror_agent:fetch_upstream(),
+    Serializable = dict:fetch_keys(Upstream),
+    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(Serializable), Req),
     {ok, Req2, undefined};
 
 handle(Req, {upstream, <<"PUT">>}) ->

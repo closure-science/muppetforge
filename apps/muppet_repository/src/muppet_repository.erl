@@ -23,7 +23,7 @@ find_release({Author, Name}, VersionConstraints) ->
 find(FullName) ->
     gen_server:call(?MODULE, {find_module, FullName}).
 
--spec store( binary() ) -> {ok, [muppet_driver:module_type()]} | {error, {Error::any(), Reason::any()}}.
+-spec store( binary() ) -> ok | {error, {Error::any(), Reason::any()}}.
 store(Tarball) ->
     gen_server:call(?MODULE, {store_module, Tarball}).
 
@@ -42,9 +42,17 @@ init([]) ->
     {ok, State}.
 
 handle_cast({store_module, Tarball}, State) ->
-    {noreply, muppet_driver:store(State, assets_dir(), Tarball)}.
+    NewState = case muppet_driver:store(State, assets_dir(), Tarball) of
+        {ok, S} -> S;
+        _ -> State
+    end,
+    {noreply, NewState}.
 handle_call({store_module, Tarball}, _From, State) ->
-    {reply, ok, muppet_driver:store(State, assets_dir(), Tarball)};    
+    {Response, NewState} = case muppet_driver:store(State, assets_dir(), Tarball) of
+        {ok, _State} = R -> R;
+        E -> {E, State}
+    end,
+    {reply, Response, NewState};    
 handle_call({find_module, FullName}, From, State) ->
     async_(From, State, fun() -> muppet_driver:find(State, FullName) end);
 handle_call({search_modules, Terms}, From, State) ->
