@@ -2,7 +2,7 @@
 -export([constraints/1, matches/2, max/2, version/1, to_binary/1, to_string/1]).
 
 
--type version_type() :: {Major::integer(), Minor::integer(), Patch::integer()}.
+-type version_type() :: {Major::integer(), Minor::integer(), Patch::integer(), Special::binary() }.
 -type version_op() :: eq | lt | gt | lte | gte.
 -type constraint_type() :: {version_op(), version_type()}.
 
@@ -25,11 +25,16 @@ bin(lt) -> <<"<">>;
 bin(lte) -> <<"<=">>;
 bin(gt) -> <<">">>;
 bin(gte) -> <<">=">>;
-bin({Major, Minor, Patch}) ->
+bin({Major, Minor, Patch, undefined}) ->
     Maj = integer_to_binary(Major),
     Min = integer_to_binary(Minor),
     Pat = integer_to_binary(Patch), 
     << Maj/binary, <<".">>/binary, Min/binary, <<".">>/binary, Pat/binary >>;
+bin({Major, Minor, Patch, Special}) ->
+    Maj = integer_to_binary(Major),
+    Min = integer_to_binary(Minor),
+    Pat = integer_to_binary(Patch), 
+    << Maj/binary, <<".">>/binary, Min/binary, <<".">>/binary, Pat/binary, <<"-">>/binary, Special/binary >>;
 bin({Op, Version}) ->
     BinOp =bin(Op), 
     BinVer = bin(Version),
@@ -58,22 +63,23 @@ max(Lhs, Rhs) ->
 -spec matches( [constraint_type()], version_type()) -> boolean().
 matches([], _Version) ->
     true;
-matches(Constraints, {Major, Minor, Patch}) ->
-    matches(Constraints, Major, Minor, Patch).
+matches(Constraints, {Major, Minor, Patch, Special}) ->
+    matches(Constraints, Major, Minor, Patch, Special).
 
-matches([], _NeedleMajor, _NeedleMinor, _NeedlePatch) ->
+matches([], _NeedleMajor, _NeedleMinor, _NeedlePatch, _NeedleSpecial) ->
     true;
-matches([{Op,HayStack}|Constraints], NeedleMajor, NeedleMinor, NeedlePatch) ->
-    case compare(Op, {NeedleMajor, NeedleMinor, NeedlePatch}, HayStack) of
-        true -> matches(Constraints, NeedleMajor, NeedleMinor, NeedlePatch);
+matches([{Op,HayStack}|Constraints], NeedleMajor, NeedleMinor, NeedlePatch, NeedleSpecial) ->
+    case compare(Op, {NeedleMajor, NeedleMinor, NeedlePatch, NeedleSpecial}, HayStack) of
+        true -> matches(Constraints, NeedleMajor, NeedleMinor, NeedlePatch, NeedleSpecial);
         false -> false
     end.
 
 compare(eq, Version1, Version2) ->
     Version1 =:= Version2;
-compare(gt, {LhsMajor, LhsMinor, LhsPatch}, {RhsMajor, RhsMinor, RhsPatch}) ->
+compare(gt, {LhsMajor, LhsMinor, LhsPatch, LhsSpecial}, {RhsMajor, RhsMinor, RhsPatch, RhsSpecial}) ->
     if
-        LhsMajor =:= RhsMajor andalso LhsMinor =:= RhsMinor  -> LhsPatch > RhsPatch;
+        LhsMajor =:= RhsMajor andalso LhsMinor =:= RhsMinor andalso LhsPatch =:= RhsPatch -> LhsSpecial > RhsSpecial;
+        LhsMajor =:= RhsMajor andalso LhsMinor =:= RhsMinor -> LhsPatch > RhsPatch;
         LhsMajor =:= RhsMajor -> LhsMinor > RhsMinor;
         true -> LhsMajor > RhsMajor
     end;
@@ -97,7 +103,7 @@ constraints(ConstraintsStr) ->
 parse([], Accum) ->
     Accum;
 
-parse([Op, {_, _, _} = Version|Rest], Accum) when is_atom(Op) ->
+parse([Op, {_, _, _, _} = Version|Rest], Accum) when is_atom(Op) ->
     parse(Rest, Accum ++ [{Op, Version}]).
 
 tokenize([], Accum, _State) ->
@@ -143,14 +149,15 @@ tokenize(Stream, Accum, version) ->
 wildcard_to_tokens([MajorStr, MinorStr]) ->
     Major = list_to_integer(MajorStr),
     Minor = list_to_integer(MinorStr),
-    [gte, {Major, Minor, 0}, lt, {Major, Minor+1, 0}];
+    [gte, {Major, Minor, 0, undefined}, lt, {Major, Minor+1, 0, undefined}];
 wildcard_to_tokens([MajorStr]) ->
     Major = list_to_integer(MajorStr),
-    [gte, {Major, 0, 0}, lt, {Major+1, 0, 0}].
+    [gte, {Major, 0, 0, undefined}, lt, {Major+1, 0, 0, undefined}].
 
 version_tuple_from_stream(Stream) when is_binary(Stream) ->
     version_tuple_from_stream(binary_to_list(Stream));
 version_tuple_from_stream(Stream) ->
-    {match, [All, Major, Minor, Patch]} = re:run(Stream, "(\\d+)\\.(\\d+)\\.(\\d+)", [{capture, all, list}]),
-    Version = {list_to_integer(Major), list_to_integer(Minor), list_to_integer(Patch)},
-    {length(All), Version}.
+    case re:run(Stream, "(\\d+)\\.(\\d+)\\.(\\d+)(?:-(\\S+))?", [{capture, all, list}]) of
+        {match, [All, Major, Minor, Patch]} ->  {length(All), {list_to_integer(Major), list_to_integer(Minor), list_to_integer(Patch), undefined }};
+        {match, [All, Major, Minor, Patch, Special]} ->  {length(All), {list_to_integer(Major), list_to_integer(Minor), list_to_integer(Patch), list_to_binary(Special) }}
+    end.

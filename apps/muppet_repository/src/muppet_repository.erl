@@ -1,7 +1,7 @@
 -module(muppet_repository).
 
 -behaviour(gen_server).
--export([find/1, search/1, find_release/2, store/1, assets_dir/0, status/0]).
+-export([find/1, search/1, find_release/2, store/1, assets_dir/0, status/0, knows/3]).
 -export([init/1, handle_cast/2, handle_call/3, handle_info/2, code_change/3, terminate/2]).
 -export([start_link/0]).
 
@@ -31,6 +31,11 @@ store(Tarball) ->
 search(Terms) ->
     gen_server:call(?MODULE, {search_modules, Terms}).
 
+-spec knows(binary(), binary(), versions:version_type() ) -> boolean().
+knows(Author, Module, Version) ->
+    gen_server:call(?MODULE, {knows, Author, Module, Version}).
+
+
 -spec status() -> term().
 status() ->
     sys:get_status(?MODULE).
@@ -57,6 +62,8 @@ handle_call({find_module, FullName}, From, State) ->
     async_(From, State, fun() -> muppet_driver:find(State, FullName) end);
 handle_call({search_modules, Terms}, From, State) ->
     async_(From, State, fun() -> muppet_driver:search(State, Terms) end);
+handle_call({knows, Author, Module, Version}, From, State) ->
+    async_(From, State, fun() -> muppet_driver:knows(State, Author, Module, Version) end);
 handle_call({find_release, Author, Name, VersionConstraints}, From, State) ->
     async_(From, State, fun() -> muppet_driver:find_release(State, Author, Name, VersionConstraints) end).
 

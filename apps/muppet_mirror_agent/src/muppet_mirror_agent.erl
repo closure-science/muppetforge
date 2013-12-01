@@ -81,30 +81,36 @@ handle_info(tick, State) ->
         [] -> 
             case dict:fetch_keys(State#state.tbd) of
                 [] ->  timer:send_after(?TICK_INTERVAL_MILLIS, tick);
-                [{FullName, Version} = Coords|_] -> 
+                [{AuthorAndModule, Version} = Coords|_] -> 
                     BaseUrl = dict:fetch(Coords, State#state.tbd),
-                    spawn_link(fun() -> fetch_and_store_tarball(ThisPid, Now, BaseUrl, FullName, Version) end)
+                    spawn_link(fun() -> fetch_and_store_tarball(ThisPid, Now, BaseUrl, AuthorAndModule, Version) end)
             end
     end,
     {noreply, State};
 
 handle_info({upstream_metadata, At, UpstreamBaseUrl, VersionsFromUpstream}, State) ->
+    Unknown = lists:filter(fun({BaseUrl, {{Author, Module}, Version}}) ->
+        not muppet_repository:knows(Author, Module, Version)
+    end, VersionsFromUpstream),
+    NotBlacklisted = lists:filter(fun({BaseUrl, {{Author, Module}, Version}}) ->
+        true
+    end, Unknown),
     NewTbd = lists:foldl(fun({BaseUrl, Coords}, Accum) ->
         dict:store(Coords, BaseUrl, Accum)
-    end, State#state.tbd, VersionsFromUpstream),
+    end, State#state.tbd, NotBlacklisted),
     NewUpstream = dict:store(UpstreamBaseUrl, At, State#state.upstream),
     {noreply, State#state{ upstream = NewUpstream, tbd=NewTbd }};
 
 handle_info({upstream_failed, _At, ErrorType, Reason}, State) ->
     {noreply, State};
 
-handle_info({tarball_done, _At, _BaseUrl, FullName, Version}, State) ->
-    NewTbd = dict:erase({FullName, Version}, State#state.tbd),
+handle_info({tarball_done, _At, _BaseUrl, AuthorAndModule, Version}, State) ->
+    NewTbd = dict:erase({AuthorAndModule, Version}, State#state.tbd),
     {noreply, State#state{ tbd = NewTbd}};
 
-handle_info({tarball_failed, At, BaseUrl, FullName, Version, ErrorType, Reason}, State) ->
-    NewTbd = dict:erase({FullName, Version}, State#state.tbd),
-    NewErrors = dict:store({BaseUrl, FullName, Version}, {At, {ErrorType, Reason}}, State#state.errors),
+handle_info({tarball_failed, At, BaseUrl, AuthorAndModule, Version, ErrorType, Reason}, State) ->
+    NewTbd = dict:erase({AuthorAndModule, Version}, State#state.tbd),
+    NewErrors = dict:store({BaseUrl, AuthorAndModule, Version}, {At, {ErrorType, Reason}}, State#state.errors),
     {noreply, State#state{ tbd = NewTbd, errors = NewErrors}};
 
 handle_info({'EXIT', _Pid, _Reason}, State) ->
@@ -125,22 +131,22 @@ refresh_upstream(Parent, Now, UpstreamBaseUrl) ->
         {ok, {{_, 200, _}, Headers, Body}} = httpc:request(binary_to_list(UpstreamBaseUrl) ++ "/modules.json"),
         DecodedModules = jiffy:decode(Body),
         VersionsFromUpstream = lists:flatmap(fun({M}) ->
-            FullName = proplists:get_value(<<"full_name">>, M),
+            AuthorAndModule = muppet_driver:author_and_module(proplists:get_value(<<"full_name">>, M)),
             Releases = proplists:get_value(<<"releases">>, M),
-            [{UpstreamBaseUrl, {FullName, proplists:get_value(<<"version">>, R) }} || {R} <- Releases]
+            [{UpstreamBaseUrl, {AuthorAndModule, proplists:get_value(<<"version">>, R) }} || {R} <- Releases]
         end, DecodedModules),
         Parent ! {upstream_metadata, Now, UpstreamBaseUrl, VersionsFromUpstream }
     catch 
         T:R -> Parent ! {upstream_failed, Now, T, R}
     end.
 
-fetch_and_store_tarball(Parent, Now, BaseUrl, FullName, Version) ->
+fetch_and_store_tarball(Parent, Now, BaseUrl, AuthorAndModule, Version) ->
     try
-        TarballBinary = fetch_tarball_binary(BaseUrl, FullName, Version),
+        TarballBinary = fetch_tarball_binary(BaseUrl, AuthorAndModule, Version),
         ok = muppet_repository:store(TarballBinary),
-        Parent ! {tarball_done, Now, BaseUrl, FullName, Version}
+        Parent ! {tarball_done, Now, BaseUrl, AuthorAndModule, Version}
     catch
-        T:R -> Parent ! {tarball_failed, Now, BaseUrl, FullName, Version, T, R}
+        T:R -> Parent ! {tarball_failed, Now, BaseUrl, AuthorAndModule, Version, T, R}
     end.
 
 upstream_to_be_refreshed(State) ->
@@ -150,11 +156,12 @@ upstream_to_be_refreshed(State) ->
     end, State#state.upstream),
     {Now, dict:fetch_keys(Expired) }.
 
-fetch_tarball_binary(BaseUrl, FullName, Version) ->
-    Url = binary_to_list(BaseUrl) ++ "/api/v1/releases.json?module="++binary_to_list(FullName)++"&version="++binary_to_list(Version),
+fetch_tarball_binary(BaseUrl, {Author, Module} = AuthorAndModule, Version) ->
+    FullName = binary_to_list(Author) ++ "/" ++ binary_to_list(Module),
+    Url = binary_to_list(BaseUrl) ++ "/api/v1/releases.json?module="++FullName++"&version="++binary_to_list(Version),
     {ok, {{_, 200, _}, _, RelBody}} = httpc:request(Url),
     {DecodedBody} = jiffy:decode(RelBody),
-    [{Release}] = proplists:get_value(FullName, DecodedBody),
+    [{Release}] = proplists:get_value(list_to_binary(FullName), DecodedBody),
     RemoteFileName = proplists:get_value(<<"file">>, Release),
     {ok, {{_, 200, _}, _, TarBody}} = httpc:request(get, {binary_to_list(BaseUrl) ++ binary_to_list(RemoteFileName), []}, [], [{body_format, binary}]),
     TarBody.
@@ -162,10 +169,11 @@ fetch_tarball_binary(BaseUrl, FullName, Version) ->
 serializable_errors(Errors) ->
     lists:map(fun serializable_error/1, dict:to_list(Errors)).
 
-serializable_error({{BaseUrl, FullName, Version}, {Now, {Type, Error}}}) ->
+serializable_error({{BaseUrl, {Author, Module}, Version}, {Now, {Type, Error}}}) ->
     {[
         {base_url, BaseUrl},
-        {full_name, FullName},
+        {author, Author}, 
+        {module, Module},
         {version, Version},
         {at, timer:now_diff(Now, {0,0,0}) div 1000},
         {error_type, Type},

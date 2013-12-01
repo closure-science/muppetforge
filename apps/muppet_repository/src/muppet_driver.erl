@@ -1,5 +1,5 @@
 -module(muppet_driver).
--export([new/0, new/1, find_release/4, find/2, store/3, search/2, serializable/1]).
+-export([new/0, new/1, find_release/4, find/2, store/3, search/2, serializable/1, author_and_module/1, knows/4]).
 
 -define(FULL_NAME(Author, ModuleName), <<Author/binary, <<"/">>/binary, ModuleName/binary>>).
 -define(FILE_NAME(Author, ModuleName, Version), << <<"/">>/binary , Author/binary, <<"-">>/binary, ModuleName/binary, <<"-">>/binary, Version/binary, <<".tar.gz">>/binary >>).
@@ -31,13 +31,24 @@ new(AssetsDir) ->
 
 
 % -----------------------------------------------------------------------------
+-spec knows(state(), Author::binary(), ModuleName::binary(), Version::versions:version_type()) -> boolean().
+% -----------------------------------------------------------------------------
+knows([Module|Rest], Author, ModuleName, Version) ->
+    case Author =:= Module#module.author andalso ModuleName =:= Module#module.name of
+        true -> true;
+        false -> knows(Rest, Author, ModuleName, Version)
+    end;
+knows([], _Author, _ModuleName, _Version) ->
+    false.
+
+% -----------------------------------------------------------------------------
 -spec find_release(state(), binary(), binary(), [versions:constraint_type()]) -> {ok, dict()} | {missing_dependency, FullName::binary()}.
 % -----------------------------------------------------------------------------
 find_release(Modules, Author, Name, Constraints) ->
     try
         find_release(Modules, [{?FULL_NAME(Author, Name), Constraints}], dict:new())
     catch
-        throw:{missing_dependency, FullName } = R -> R
+        throw:{missing_dependency, _FullName} = R -> R
     end.
 
 find_release(_Modules, [], Dict) ->
@@ -117,14 +128,21 @@ search([Module|Rest], Terms, Matching) ->
         _ -> search(Rest, Terms, [Module|Matching])
     end.
 
-
+% -----------------------------------------------------------------------------
+-spec author_and_module(binary()) -> {Author::binary(), Module::binary()}.
+% -----------------------------------------------------------------------------
+author_and_module(FullName) ->
+    case re:run(FullName, <<"\\s*(.+)[\\-/](.+?)\\s*$">>, [{capture, all_but_first, binary}]) of
+        {match, [Author, Name]} -> {Author, Name};
+        _ -> throw({parse_error, FullName})
+    end.
 
 read_metadata(File) ->
     {ok, MetadataFileName} = find_metadata_file_in_tarball(File),
     {ok, [{_, BinaryJson}]} = erl_tar:extract(File, [memory, compressed, {files,[MetadataFileName]}]),
     {Decoded} = jiffy:decode(BinaryJson),
     FullName = proplists:get_value(<<"name">>, Decoded),
-    {match, [Author, Name]} = re:run(FullName, <<"\\s*(.+)[\\-/](.+?)\\s*$">>, [{capture, all_but_first, binary}]),
+    {Author, Name} = author_and_module(FullName),
     BinaryVersion = proplists:get_value(<<"version">>, Decoded),
     Version = versions:version(BinaryVersion),
 
