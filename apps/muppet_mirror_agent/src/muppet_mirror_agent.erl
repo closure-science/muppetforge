@@ -108,9 +108,9 @@ handle_info({tarball_done, _At, _BaseUrl, AuthorAndModule, Version}, State) ->
     NewTbd = dict:erase({AuthorAndModule, Version}, State#state.tbd),
     {noreply, State#state{ tbd = NewTbd}};
 
-handle_info({tarball_failed, At, BaseUrl, AuthorAndModule, Version, ErrorType, Reason}, State) ->
+handle_info({tarball_failed, At, BaseUrl, AuthorAndModule, Version, ErrorType, Reason, StackTrace}, State) ->
     NewTbd = dict:erase({AuthorAndModule, Version}, State#state.tbd),
-    NewErrors = dict:store({BaseUrl, AuthorAndModule, Version}, {At, {ErrorType, Reason}}, State#state.errors),
+    NewErrors = dict:store({BaseUrl, AuthorAndModule, Version}, {At, {ErrorType, Reason, StackTrace}}, State#state.errors),
     {noreply, State#state{ tbd = NewTbd, errors = NewErrors}};
 
 handle_info({'EXIT', _Pid, _Reason}, State) ->
@@ -146,7 +146,7 @@ fetch_and_store_tarball(Parent, Now, BaseUrl, AuthorAndModule, Version) ->
         ok = muppet_repository:store(TarballBinary),
         Parent ! {tarball_done, Now, BaseUrl, AuthorAndModule, Version}
     catch
-        T:R -> Parent ! {tarball_failed, Now, BaseUrl, AuthorAndModule, Version, T, R}
+        T:R -> Parent ! {tarball_failed, Now, BaseUrl, AuthorAndModule, Version, T, R, erlang:get_stacktrace() }
     end.
 
 upstream_to_be_refreshed(State) ->
@@ -161,7 +161,10 @@ fetch_tarball_binary(BaseUrl, {Author, Module} = AuthorAndModule, Version) ->
     Url = binary_to_list(BaseUrl) ++ "/api/v1/releases.json?module="++FullName++"&version="++binary_to_list(Version),
     {ok, {{_, 200, _}, _, RelBody}} = httpc:request(Url),
     {DecodedBody} = jiffy:decode(RelBody),
-    [{Release}] = proplists:get_value(list_to_binary(FullName), DecodedBody),
+    Release = case proplists:get_value(list_to_binary(FullName), DecodedBody) of
+        [{R}] -> R;
+        _ -> throw({no_release, BaseUrl, Author, Module, Version})
+    end,
     RemoteFileName = proplists:get_value(<<"file">>, Release),
     {ok, {{_, 200, _}, _, TarBody}} = httpc:request(get, {binary_to_list(BaseUrl) ++ binary_to_list(RemoteFileName), []}, [], [{body_format, binary}]),
     TarBody.
@@ -169,7 +172,7 @@ fetch_tarball_binary(BaseUrl, {Author, Module} = AuthorAndModule, Version) ->
 serializable_errors(Errors) ->
     lists:map(fun serializable_error/1, dict:to_list(Errors)).
 
-serializable_error({{BaseUrl, {Author, Module}, Version}, {Now, {Type, Error}}}) ->
+serializable_error({{BaseUrl, {Author, Module}, Version}, {Now, {Type, Error, StackTrace}}}) ->
     {[
         {base_url, BaseUrl},
         {author, Author}, 
@@ -177,5 +180,15 @@ serializable_error({{BaseUrl, {Author, Module}, Version}, {Now, {Type, Error}}})
         {version, Version},
         {at, timer:now_diff(Now, {0,0,0}) div 1000},
         {error_type, Type},
-        {error, list_to_binary(lists:flatten(io_lib:format("~p", [Error]))) }
+        {error, list_to_binary(lists:flatten(io_lib:format("~p", [Error]))) },
+        {stack_trace, lists:map(fun frame/1, StackTrace) }
+    ]}.
+
+frame({Module, FunctionName,Arity, [{file, FileName}, {line, LineNo}]}) ->
+    {[
+        {module, Module},
+        {fn, FunctionName},
+        {arity,  Arity},
+        {file, list_to_binary(FileName)},
+        {line, LineNo }
     ]}.
