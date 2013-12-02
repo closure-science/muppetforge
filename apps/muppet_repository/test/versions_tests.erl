@@ -183,115 +183,29 @@ should_suit_up_test_() ->
         ?_assert(versions:matches(versions:constraints("1.x"), versions:version(<<"v1.2.4">>)))
     ].
 
-%   describe 'instantiation' do
-%     it 'should raise an exception when passed an invalid version string' do
-%       expect { SemVer.new('invalidVersion') }.to raise_exception ArgumentError
-%     end
+comparisons_on_a_basic_version_test_() ->
+    [
+        ?_assert(versions:compare(eq, versions:version(<<"v1.2.3">>), versions:version(<<"1.2.3">>))),
+        ?_assert(versions:compare(gt, versions:version(<<"v1.2.3">>), versions:version(<<"0.2.3">>))),
+        ?_assert(versions:compare(lt, versions:version(<<"v1.2.3">>), versions:version(<<"2.2.3">>))),
+        ?_assert(versions:compare(gt, versions:version(<<"v1.2.3">>), versions:version(<<"1.1.3">>))),
+        ?_assert(versions:compare(lt, versions:version(<<"v1.2.3">>), versions:version(<<"1.3.3">>))),
+        ?_assert(versions:compare(gt, versions:version(<<"v1.2.3">>), versions:version(<<"1.2.2">>))),
+        ?_assert(versions:compare(lt, versions:version(<<"v1.2.3">>), versions:version(<<"1.2.4">>))),
+        ?_assert(versions:compare(gt, versions:version(<<"v1.2.3">>), versions:version(<<"1.2.3-beta">>))),
+        ?_assert(versions:compare(lt, versions:version(<<"v1.2.3">>), versions:version(<<"1.2.4-beta">>)))
+    ].
 
-%     it 'should populate the appropriate fields for a basic version string' do
-%       version = SemVer.new('1.2.3')
-%       version.major.should   == 1
-%       version.minor.should   == 2
-%       version.tiny.should    == 3
-%       version.special.should == ''
-%     end
-
-%     it 'should populate the appropriate fields for a special version string' do
-%       version = SemVer.new('3.4.5-beta6')
-%       version.major.should   == 3
-%       version.minor.should   == 4
-%       version.tiny.should    == 5
-%       version.special.should == '-beta6'
-%     end
-%   end
-
-%   describe '#matched_by?' do
-%     subject { SemVer.new('v1.2.3-beta') }
-
-%     describe 'should match against' do
-%       describe 'literal version strings' do
-%         it { should be_matched_by('1.2.3-beta') }
-
-%         it { should_not be_matched_by('1.2.3-alpha') }
-%         it { should_not be_matched_by('1.2.4-beta') }
-%         it { should_not be_matched_by('1.3.3-beta') }
-%         it { should_not be_matched_by('2.2.3-beta') }
-%       end
-
-%       describe 'partial version strings' do
-%         it { should be_matched_by('1.2.3') }
-%         it { should be_matched_by('1.2') }
-%         it { should be_matched_by('1') }
-%       end
-
-%       describe 'version strings with placeholders' do
-%         it { should be_matched_by('1.2.x') }
-%         it { should be_matched_by('1.x.3') }
-%         it { should be_matched_by('1.x.x') }
-%         it { should be_matched_by('1.x') }
-%       end
-%     end
-%   end
-
-%   describe 'comparisons' do
-%     describe 'against a string' do
-%       it 'should just work' do
-%         SemVer.new('1.2.3').should == '1.2.3'
-%       end
-%     end
-
-%     describe 'against a symbol' do
-%       it 'should just work' do
-%         SemVer.new('1.2.3').should == :'1.2.3'
-%       end
-%     end
-
-%     describe 'on a basic version (v1.2.3)' do
-%       subject { SemVer.new('v1.2.3') }
-
-%       it { should == SemVer.new('1.2.3') }
-
-%       # Different major versions
-%       it { should > SemVer.new('0.2.3') }
-%       it { should < SemVer.new('2.2.3') }
-
-%       # Different minor versions
-%       it { should > SemVer.new('1.1.3') }
-%       it { should < SemVer.new('1.3.3') }
-
-%       # Different tiny versions
-%       it { should > SemVer.new('1.2.2') }
-%       it { should < SemVer.new('1.2.4') }
-
-%       # Against special versions
-%       it { should > SemVer.new('1.2.3-beta') }
-%       it { should < SemVer.new('1.2.4-beta') }
-%     end
-
-%     describe 'on a special version (v1.2.3-beta)' do
-%       subject { SemVer.new('v1.2.3-beta') }
-
-%       it { should == SemVer.new('1.2.3-beta') }
-
-%       # Same version, final release
-%       it { should < SemVer.new('1.2.3') }
-
-%       # Different major versions
-%       it { should > SemVer.new('0.2.3') }
-%       it { should < SemVer.new('2.2.3') }
-
-%       # Different minor versions
-%       it { should > SemVer.new('1.1.3') }
-%       it { should < SemVer.new('1.3.3') }
-
-%       # Different tiny versions
-%       it { should > SemVer.new('1.2.2') }
-%       it { should < SemVer.new('1.2.4') }
-
-%       # Against special versions
-%       it { should > SemVer.new('1.2.3-alpha') }
-%       it { should < SemVer.new('1.2.3-beta2') }
-%     end
-%   end
-% end
-
+comparisons_on_a_special_version_test_() ->
+    [
+        ?_assert(versions:compare(eq, versions:version(<<"v1.2.3-beta">>), versions:version(<<"1.2.3-beta">>))),
+        ?_assert(versions:compare(lt, versions:version(<<"v1.2.3-beta">>), versions:version(<<"1.2.3">>))),
+        ?_assert(versions:compare(gt, versions:version(<<"v1.2.3-beta">>), versions:version(<<"0.2.3">>))),
+        ?_assert(versions:compare(lt, versions:version(<<"v1.2.3-beta">>), versions:version(<<"2.2.3">>))),
+        ?_assert(versions:compare(gt, versions:version(<<"v1.2.3-beta">>), versions:version(<<"1.1.3">>))),
+        ?_assert(versions:compare(lt, versions:version(<<"v1.2.3-beta">>), versions:version(<<"1.3.3">>))),
+        ?_assert(versions:compare(gt, versions:version(<<"v1.2.3-beta">>), versions:version(<<"1.2.2">>))),
+        ?_assert(versions:compare(lt, versions:version(<<"v1.2.3-beta">>), versions:version(<<"1.2.4">>))),
+        ?_assert(versions:compare(gt, versions:version(<<"v1.2.3-beta">>), versions:version(<<"1.2.3-alpha">>))),
+        ?_assert(versions:compare(lt, versions:version(<<"v1.2.3-beta">>), versions:version(<<"1.2.3-beta2">>)))
+    ].
