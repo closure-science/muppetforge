@@ -93,7 +93,7 @@ handle_info({upstream_metadata, At, UpstreamBaseUrl, VersionsFromUpstream}, Stat
         not muppet_repository:knows(Author, Module, Version)
     end, VersionsFromUpstream),
     NotBlacklisted = lists:filter(fun({BaseUrl, {{Author, Module}, Version}}) ->
-        true
+        allowed(State#state.retards, {BaseUrl, Author, Module, Version})
     end, Unknown),
     NewTbd = lists:foldl(fun({BaseUrl, Coords}, Accum) ->
         dict:store(Coords, BaseUrl, Accum)
@@ -125,6 +125,19 @@ code_change(_OldVsn, State, _Extra) ->
 
 terminate(_Reason, _State) ->
     ok.
+
+
+allowed([], {BaseUrl, Author, Module, Version}) ->
+    true;    
+allowed([Bl|Cdr], El) ->
+    case blacklisted(Bl, El) of 
+        true -> true;
+        false -> allowed(Cdr, El)
+    end.
+blacklisted({BlBaseUrl, BlAuthor, BlModule, BlVersion}, {BaseUrl, Author, Module, Version}) ->
+    bl(BlBaseUrl, BaseUrl) andalso bl(BlAuthor, Author) andalso bl(BlModule, Module) andalso bl(BlVersion, Version).
+bl(undefined, El) -> true;        
+bl(BlEl, El) -> BlEl =:= El.
 
 refresh_upstream(Parent, Now, UpstreamBaseUrl) ->
     try
