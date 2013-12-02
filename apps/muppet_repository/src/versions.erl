@@ -69,17 +69,30 @@ matches(Constraints, {Major, Minor, Patch, Special}) ->
 
 matches([], _NeedleMajor, _NeedleMinor, _NeedlePatch, _NeedleSpecial) ->
     true;
-matches([{Op,HayStack}|Constraints], NeedleMajor, NeedleMinor, NeedlePatch, NeedleSpecial) ->
-    case compare(Op, {NeedleMajor, NeedleMinor, NeedlePatch, NeedleSpecial}, HayStack) of
+matches([{_Op,_HayStack} = Constraint|Constraints], NeedleMajor, NeedleMinor, NeedlePatch, NeedleSpecial) ->
+    case match(Constraint, {NeedleMajor, NeedleMinor, NeedlePatch, NeedleSpecial}) of
         true -> matches(Constraints, NeedleMajor, NeedleMinor, NeedlePatch, NeedleSpecial);
         false -> false
     end.
+
+match({eq, {_Major, _Minor, _Patch, <<>>} = HayStack}, {NeedleMajor, NeedleMinor, NeedlePatch, _NeedleSpecial}) ->
+    compare(eq, HayStack, {NeedleMajor, NeedleMinor, NeedlePatch, <<>>});
+match({gte, {_Major, _Minor, _Patch, <<>>} = HayStack}, {NeedleMajor, NeedleMinor, NeedlePatch, _NeedleSpecial} = Needle) ->
+    compare(eq, HayStack, {NeedleMajor, NeedleMinor, NeedlePatch, <<>>}) orelse compare(gte, Needle, HayStack);
+match({lte, {_Major, _Minor, _Patch, <<>>} = HayStack}, {NeedleMajor, NeedleMinor, NeedlePatch, _NeedleSpecial} = Needle) ->
+    compare(eq, HayStack, {NeedleMajor, NeedleMinor, NeedlePatch, <<>>}) orelse compare(lte, Needle, HayStack);
+match({gt, {_Major, _Minor, _Patch, <<>>} = HayStack}, {NeedleMajor, NeedleMinor, NeedlePatch, _NeedleSpecial} = Needle) ->
+    (not compare(eq, HayStack, {NeedleMajor, NeedleMinor, NeedlePatch, <<>>})) andalso compare(gt, Needle, HayStack);
+match({lt, {_Major, _Minor, _Patch, <<>>} = HayStack}, {NeedleMajor, NeedleMinor, NeedlePatch, _NeedleSpecial} = Needle) ->
+    (not compare(eq, HayStack, {NeedleMajor, NeedleMinor, NeedlePatch, <<>>})) andalso compare(lt, Needle, HayStack);
+match({Op, HayStack}, Needle) ->
+    compare(Op, Needle, HayStack).
 
 compare(eq, Version1, Version2) ->
     Version1 =:= Version2;
 compare(gt, {LhsMajor, LhsMinor, LhsPatch, LhsSpecial}, {RhsMajor, RhsMinor, RhsPatch, RhsSpecial}) ->
     if
-        LhsMajor =:= RhsMajor andalso LhsMinor =:= RhsMinor andalso LhsPatch =:= RhsPatch -> LhsSpecial > RhsSpecial;
+        LhsMajor =:= RhsMajor andalso LhsMinor =:= RhsMinor andalso LhsPatch =:= RhsPatch -> special_gt(LhsSpecial, RhsSpecial);
         LhsMajor =:= RhsMajor andalso LhsMinor =:= RhsMinor -> LhsPatch > RhsPatch;
         LhsMajor =:= RhsMajor -> LhsMinor > RhsMinor;
         true -> LhsMajor > RhsMajor
@@ -90,6 +103,16 @@ compare(gte, LHS, RHS) ->
     compare(eq, LHS, RHS) orelse compare(gt, LHS, RHS);
 compare(lte, LHS, RHS) ->
     compare(eq, LHS, RHS) orelse compare(lt, LHS, RHS).
+
+special_gt(LhSpecial, <<>>) ->
+    io:format("1 ~p ",[LhSpecial]),
+    false;
+special_gt(<<>>, RhSpecial) ->
+    io:format("2 ~p ",[RhSpecial]),
+    true;
+special_gt(LhSpecial, RhSpecial) ->
+    io:format("3 ~p ~p",[LhSpecial, RhSpecial]),
+    LhSpecial > RhSpecial.
 
 
 -spec constraints( undefined | string() | binary() ) -> [constraint_type()].
@@ -125,20 +148,18 @@ tokenize([$< | Rest], Accum, default) ->
     tokenize(Rest, Accum ++ [lt], version);
 
 tokenize([$~ | Rest], Accum, default) ->
-    % ~3 is an alias for 3.x
-    % ~3.2 is an alias for 3.2.x
     tokenize(Rest, Accum, circa);
 
 
 tokenize(Stream, Accum, circa) ->
-    {match, [All|Parts]} = re:run(Stream, "(\\d+)(?:\\.(\\d+))?", [{capture, all, list}]),
-    Versions = wildcard_to_tokens(Parts),
+    {match, [All|Parts]} = re:run(Stream, "(\\d+)(?:\\.(\\d+))?(?:\\.(\\d+))?", [{capture, all, list}]),
+    Versions = circa_to_tokens(Parts),
     tokenize(lists:nthtail(length(All), Stream) , Accum ++ Versions, default);    
 tokenize(Stream, Accum, default) ->
-    case re:run(Stream, "(\\d+(?:\\.\\d+)?)\\.x", [{capture, all, list}]) of
-        {match, [All, AsCirca]}   -> 
-            Accum2 = tokenize(AsCirca, Accum, circa),
-            tokenize(lists:nthtail(length(All), Stream) , Accum2, default);
+    case re:run(Stream, "(\\d+)(?:\\.(\\d+))?\\.x", [{capture, all, list}]) of
+        {match, [All | Parts]}   -> 
+            Tokens = wildcard_to_tokens(Parts),
+            tokenize(lists:nthtail(length(All), Stream) , Accum ++ Tokens, default);
         nomatch -> tokenize(Stream, Accum ++ [eq], version)
     end;
 tokenize(Stream, Accum, version) ->
@@ -154,6 +175,19 @@ wildcard_to_tokens([MajorStr, MinorStr]) ->
 wildcard_to_tokens([MajorStr]) ->
     Major = list_to_integer(MajorStr),
     [gte, {Major, 0, 0, <<>>}, lt, {Major+1, 0, 0, <<>>}].
+
+circa_to_tokens([MajorStr]) ->
+    Major = list_to_integer(MajorStr),
+    [gte, {Major, 0, 0, <<>>}, lt, {Major+1, 0, 0, <<>>}];
+circa_to_tokens([MajorStr, MinorStr]) ->
+    Major = list_to_integer(MajorStr),
+    Minor = list_to_integer(MinorStr),
+    [gte, {Major, Minor, 0, <<>>}, lt, {Major+1, 0, 0, <<>>}];
+circa_to_tokens([MajorStr, MinorStr, PatchStr]) ->
+    Major = list_to_integer(MajorStr),
+    Minor = list_to_integer(MinorStr),
+    Patch = list_to_integer(PatchStr),
+    [gte, {Major, Minor, Patch, <<>>}, lt, {Major, Minor+1, 0, <<>>}].
 
 version_tuple_from_stream(Stream) when is_binary(Stream) ->
     version_tuple_from_stream(binary_to_list(Stream));

@@ -87,168 +87,101 @@ should_parse_special_version_strings_test_() ->
 
 should_fail_on_invalid_version_strings_test_() ->
     [
-        ?_assertException(T, D, versions:version(<<"nope">>)),
-        ?_assertException(T, D, versions:version(<<"0.0foo">>)),
-        ?_assertException(T, D, versions:version(<<"999.999">>)),
-        ?_assertException(T, D, versions:version(<<"x0.0.0">>)),
-        ?_assertException(T, D, versions:version(<<"z.z.z">>)),
-        ?_assertException(T, D, versions:version(<<"1.2.3beta">>)),
-        ?_assertException(T, D, versions:version(<<"1.x.y">>))
+        ?_assertException(_T, _D, versions:version(<<"nope">>)),
+        ?_assertException(_T, _D, versions:version(<<"0.0foo">>)),
+        ?_assertException(_T, _D, versions:version(<<"999.999">>)),
+        ?_assertException(_T, _D, versions:version(<<"x0.0.0">>)),
+        ?_assertException(_T, _D, versions:version(<<"z.z.z">>)),
+        ?_assertException(_T, _D, versions:version(<<"1.2.3beta">>)),
+        ?_assertException(_T, _D, versions:version(<<"1.x.y">>))
     ].
 
+should_produce_expected_constraints_test_() ->
+    [
+        ?_assertMatch([{eq, {1,2,3, <<"alpha">>}}], versions:constraints("1.2.3-alpha")),
+        ?_assertMatch([{eq, {1,2,3, <<>>}}], versions:constraints("1.2.3")),
+        ?_assertMatch([{gt, {1,2,3, <<"alpha">>}}], versions:constraints(">1.2.3-alpha")),
+        ?_assertMatch([{gt, {1,2,3, <<>>}}], versions:constraints(">1.2.3")),
+        ?_assertMatch([{lt, {1,2,3, <<"alpha">>}}], versions:constraints("<1.2.3-alpha")),
+        ?_assertMatch([{lt, {1,2,3, <<>>}}], versions:constraints("<1.2.3")),
+        ?_assertMatch([{gte, {1,2,3, <<"alpha">>}}], versions:constraints(">=1.2.3-alpha")),
+        ?_assertMatch([{gte, {1,2,3, <<>>}}], versions:constraints(">=1.2.3")),
+        ?_assertMatch([{lte, {1,2,3, <<"alpha">>}}], versions:constraints("<=1.2.3-alpha")),
+        ?_assertMatch([{lte, {1,2,3, <<>>}}], versions:constraints("<=1.2.3")),
+        ?_assertMatch([{gt, {1,2,3, <<"a">>}}, {lt, {1,2,3, <<"b">>}}], versions:constraints(">1.2.3-a <1.2.3-b")),
+        ?_assertMatch([{gt, {1,2,3, <<>>}}, {lt, {1,2,5, <<>>}}], versions:constraints(">1.2.3 <1.2.5")),
+        ?_assertMatch([{gte, {1,2,3, <<"a">>}}, {lte, {1,2,3, <<"b">>}}], versions:constraints(">=1.2.3-a <=1.2.3-b")),
+        ?_assertMatch([{gte, {1,2,3, <<>>}}, {lte, {1,2,5, <<>>}}], versions:constraints(">=1.2.3 <=1.2.5")),
+        % ?_assertMatch([{gte, {1,2,3, <<"a">>}}, {lte, {2,3,4, <<"b">>}}], versions:constraints("1.2.3-a - 2.3.4-b")),
+        % ?_assertMatch([{gte, {1,2,3, <<>>}}, {lte, {2,3,4, <<>>}}], versions:constraints("1.2.3 - 2.3.4")),
+        ?_assertMatch([{gte, {1,2,3, <<>>}}, {lt, {1,3,0, <<>>}}], versions:constraints("~1.2.3")),
+        ?_assertMatch([{gte, {1,2,0, <<>>}}, {lt, {2,0,0, <<>>}}], versions:constraints("~1.2")),
+        ?_assertMatch([{gte, {1,0,0, <<>>}}, {lt, {2,0,0, <<>>}}], versions:constraints("~1")),
+        ?_assertMatch([{gte, {1,2,0, <<>>}}, {lt, {1,3,0, <<>>}}], versions:constraints("1.2.x")),
+        ?_assertMatch([{gte, {1,0,0, <<>>}}, {lt, {2,0,0, <<>>}}], versions:constraints("1.x"))
+    ].
 
-%   describe '::find_matching' do
-%     before :all do
-%       @versions = %w[
-%         0.0.1
-%         0.0.2
-%         1.0.0-rc1
-%         1.0.0-rc2
-%         1.0.0
-%         1.0.1
-%         1.1.0
-%         1.1.1
-%         1.1.2
-%         1.1.3
-%         1.1.4
-%         1.2.0
-%         1.2.1
-%         2.0.0-rc1
-%       ].map { |v| SemVer.new(v) }
-%     end
+should_suit_up_test_() ->
+    [
+        ?_assertNot(versions:matches(versions:constraints("1.2.3"), versions:version(<<"v1.2.2">>))),
+        ?_assertNot(versions:matches(versions:constraints(">=1.2.3"), versions:version(<<"v1.2.2">>))),
+        ?_assert(versions:matches(versions:constraints("<=1.2.3"), versions:version(<<"v1.2.2">>))),
+        ?_assertNot(versions:matches(versions:constraints(">= 1.2.3"), versions:version(<<"v1.2.2">>))),
+        ?_assert(versions:matches(versions:constraints("<= 1.2.3"), versions:version(<<"v1.2.2">>))),
+        % ?_assertNot(versions:matches(versions:constraints("1.2.3 - 1.2.4"), versions:version(<<"v1.2.2">>))),
+        ?_assertNot(versions:matches(versions:constraints("~1.2.3"), versions:version(<<"v1.2.2">>))),
+        ?_assert(versions:matches(versions:constraints("~1.2"), versions:version(<<"v1.2.2">>))),
+        ?_assert(versions:matches(versions:constraints("~1"), versions:version(<<"v1.2.2">>))),
+        ?_assert(versions:matches(versions:constraints("1.2.x"), versions:version(<<"v1.2.2">>))),
+        ?_assert(versions:matches(versions:constraints("1.x"), versions:version(<<"v1.2.2">>))),
 
-%     it 'should match exact versions by string' do
-%       @versions.each do |version|
-%         SemVer.find_matching(version, @versions).should == version
-%       end
-%     end
+        ?_assert(versions:matches(versions:constraints("1.2.3"), versions:version(<<"v1.2.3-alpha">>))),
+        ?_assert(versions:matches(versions:constraints(">=1.2.3"), versions:version(<<"v1.2.3-alpha">>))),
+        ?_assert(versions:matches(versions:constraints("<=1.2.3"), versions:version(<<"v1.2.3-alpha">>))),
+        ?_assert(versions:matches(versions:constraints(">= 1.2.3"), versions:version(<<"v1.2.3-alpha">>))),
+        ?_assert(versions:matches(versions:constraints("<= 1.2.3"), versions:version(<<"v1.2.3-alpha">>))),
+        ?_assertNot(versions:matches(versions:constraints(">1.2.3"), versions:version(<<"v1.2.3-alpha">>))),
+        ?_assertNot(versions:matches(versions:constraints("<1.2.3"), versions:version(<<"v1.2.3-alpha">>))),
+        ?_assertNot(versions:matches(versions:constraints("> 1.2.3"), versions:version(<<"v1.2.3-alpha">>))),
+        ?_assertNot(versions:matches(versions:constraints("< 1.2.3"), versions:version(<<"v1.2.3-alpha">>))),
+        % ?_assert(versions:matches(versions:constraints("1.2.3 - 1.2.4"), versions:version(<<"v1.2.3-alpha">>))),
+        % ?_assert(versions:matches(versions:constraints("1.2.3 - 1.2.4"), versions:version(<<"v1.2.4-alpha">>))),
+        % ?_assertNot(versions:matches(versions:constraints("1.2.3 - 1.2.4"), versions:version(<<"v1.2.5-alpha">>))),
+        ?_assert(versions:matches(versions:constraints("~1.2.3"), versions:version(<<"v1.2.3-alpha">>))),
+        ?_assertNot(versions:matches(versions:constraints("~1.2.3"), versions:version(<<"v1.3.0-alpha">>))),
+        ?_assert(versions:matches(versions:constraints("~1.2"), versions:version(<<"v1.2.3-alpha">>))),
+        ?_assertNot(versions:matches(versions:constraints("~1.2"), versions:version(<<"v2.0.0-alpha">>))),
+        ?_assert(versions:matches(versions:constraints("~1"), versions:version(<<"v1.2.3-alpha">>))),
+        ?_assertNot(versions:matches(versions:constraints("~1"), versions:version(<<"v2.0.0-alpha">>))),
+        ?_assert(versions:matches(versions:constraints("1.2.x"), versions:version(<<"v1.2.3-alpha">>))),
+        ?_assertNot(versions:matches(versions:constraints("1.2.x"), versions:version(<<"v1.3.0-alpha">>))),
+        ?_assert(versions:matches(versions:constraints("1.x"), versions:version(<<"v1.2.3-alpha">>))),
+        ?_assertNot(versions:matches(versions:constraints("1.x"), versions:version(<<"v2.0.0-alpha">>))),
 
-%     it 'should return nil if no versions match' do
-%       %w[ 3.0.0 2.0.0-rc2 1.0.0-alpha ].each do |v|
-%         SemVer.find_matching(v, @versions).should be_nil
-%       end
-%     end
+        ?_assert(versions:matches(versions:constraints("1.2.3"), versions:version(<<"v1.2.3">>))),
+        ?_assert(versions:matches(versions:constraints(">=1.2.3"), versions:version(<<"v1.2.3">>))),
+        ?_assert(versions:matches(versions:constraints("<=1.2.3"), versions:version(<<"v1.2.3">>))),
+        ?_assert(versions:matches(versions:constraints(">= 1.2.3"), versions:version(<<"v1.2.3">>))),
+        ?_assert(versions:matches(versions:constraints("<= 1.2.3"), versions:version(<<"v1.2.3">>))),
+        % ?_assert(versions:matches(versions:constraints("1.2.3 - 1.2.4"), versions:version(<<"v1.2.3">>))),
+        ?_assert(versions:matches(versions:constraints("~1.2.3"), versions:version(<<"v1.2.3">>))),
+        ?_assert(versions:matches(versions:constraints("~1.2"), versions:version(<<"v1.2.3">>))),
+        ?_assert(versions:matches(versions:constraints("~1"), versions:version(<<"v1.2.3">>))),
+        ?_assert(versions:matches(versions:constraints("1.2.x"), versions:version(<<"v1.2.3">>))),
+        ?_assert(versions:matches(versions:constraints("1.x"), versions:version(<<"v1.2.3">>))),
 
-%     it 'should find the greatest match for partial versions' do
-%       SemVer.find_matching('1.0', @versions).should == 'v1.0.1'
-%       SemVer.find_matching('1.1', @versions).should == 'v1.1.4'
-%       SemVer.find_matching('1', @versions).should   == 'v1.2.1'
-%       SemVer.find_matching('2', @versions).should   == 'v2.0.0-rc1'
-%       SemVer.find_matching('2.1', @versions).should == nil
-%     end
-
-
-%     it 'should find the greatest match for versions with placeholders' do
-%       SemVer.find_matching('1.0.x', @versions).should == 'v1.0.1'
-%       SemVer.find_matching('1.1.x', @versions).should == 'v1.1.4'
-%       SemVer.find_matching('1.x', @versions).should   == 'v1.2.1'
-%       SemVer.find_matching('1.x.x', @versions).should == 'v1.2.1'
-%       SemVer.find_matching('2.x', @versions).should   == 'v2.0.0-rc1'
-%       SemVer.find_matching('2.x.x', @versions).should == 'v2.0.0-rc1'
-%       SemVer.find_matching('2.1.x', @versions).should == nil
-%     end
-%   end
-
-%   describe '::[]' do
-%     it "should produce expected ranges" do
-%       tests = {
-%         '1.2.3-alpha'          => SemVer.new('v1.2.3-alpha')  ..  SemVer.new('v1.2.3-alpha'),
-%         '1.2.3'                => SemVer.new('v1.2.3-')       ..  SemVer.new('v1.2.3'),
-%         '>1.2.3-alpha'         => SemVer.new('v1.2.3-alpha-') ..  SemVer::MAX,
-%         '>1.2.3'               => SemVer.new('v1.2.4-')       ..  SemVer::MAX,
-%         '<1.2.3-alpha'         => SemVer::MIN                 ... SemVer.new('v1.2.3-alpha'),
-%         '<1.2.3'               => SemVer::MIN                 ... SemVer.new('v1.2.3-'),
-%         '>=1.2.3-alpha'        => SemVer.new('v1.2.3-alpha')  ..  SemVer::MAX,
-%         '>=1.2.3'              => SemVer.new('v1.2.3-')       ..  SemVer::MAX,
-%         '<=1.2.3-alpha'        => SemVer::MIN                 ..  SemVer.new('v1.2.3-alpha'),
-%         '<=1.2.3'              => SemVer::MIN                 ..  SemVer.new('v1.2.3'),
-%         '>1.2.3-a <1.2.3-b'    => SemVer.new('v1.2.3-a-')     ... SemVer.new('v1.2.3-b'),
-%         '>1.2.3 <1.2.5'        => SemVer.new('v1.2.4-')       ... SemVer.new('v1.2.5-'),
-%         '>=1.2.3-a <= 1.2.3-b' => SemVer.new('v1.2.3-a')      ..  SemVer.new('v1.2.3-b'),
-%         '>=1.2.3 <=1.2.5'      => SemVer.new('v1.2.3-')       ..  SemVer.new('v1.2.5'),
-%         '1.2.3-a - 2.3.4-b'    => SemVer.new('v1.2.3-a')      ..  SemVer.new('v2.3.4-b'),
-%         '1.2.3 - 2.3.4'        => SemVer.new('v1.2.3-')       ..  SemVer.new('v2.3.4'),
-%         '~1.2.3'               => SemVer.new('v1.2.3-')       ... SemVer.new('v1.3.0-'),
-%         '~1.2'                 => SemVer.new('v1.2.0-')       ... SemVer.new('v2.0.0-'),
-%         '~1'                   => SemVer.new('v1.0.0-')       ... SemVer.new('v2.0.0-'),
-%         '1.2.x'                => SemVer.new('v1.2.0')        ... SemVer.new('v1.3.0-'),
-%         '1.x'                  => SemVer.new('v1.0.0')        ... SemVer.new('v2.0.0-'),
-%       }
-
-%       tests.each do |vstring, expected|
-%         SemVer[vstring].should == expected
-%       end
-%     end
-
-%     it "should suit up" do
-%       suitability = {
-%         [ '1.2.3',         'v1.2.2' ] => false,
-%         [ '>=1.2.3',       'v1.2.2' ] => false,
-%         [ '<=1.2.3',       'v1.2.2' ] => true,
-%         [ '>= 1.2.3',      'v1.2.2' ] => false,
-%         [ '<= 1.2.3',      'v1.2.2' ] => true,
-%         [ '1.2.3 - 1.2.4', 'v1.2.2' ] => false,
-%         [ '~1.2.3',        'v1.2.2' ] => false,
-%         [ '~1.2',          'v1.2.2' ] => true,
-%         [ '~1',            'v1.2.2' ] => true,
-%         [ '1.2.x',         'v1.2.2' ] => true,
-%         [ '1.x',           'v1.2.2' ] => true,
-
-%         [ '1.2.3',         'v1.2.3-alpha' ] => true,
-%         [ '>=1.2.3',       'v1.2.3-alpha' ] => true,
-%         [ '<=1.2.3',       'v1.2.3-alpha' ] => true,
-%         [ '>= 1.2.3',      'v1.2.3-alpha' ] => true,
-%         [ '<= 1.2.3',      'v1.2.3-alpha' ] => true,
-%         [ '>1.2.3',        'v1.2.3-alpha' ] => false,
-%         [ '<1.2.3',        'v1.2.3-alpha' ] => false,
-%         [ '> 1.2.3',       'v1.2.3-alpha' ] => false,
-%         [ '< 1.2.3',       'v1.2.3-alpha' ] => false,
-%         [ '1.2.3 - 1.2.4', 'v1.2.3-alpha' ] => true,
-%         [ '1.2.3 - 1.2.4', 'v1.2.4-alpha' ] => true,
-%         [ '1.2.3 - 1.2.4', 'v1.2.5-alpha' ] => false,
-%         [ '~1.2.3',        'v1.2.3-alpha' ] => true,
-%         [ '~1.2.3',        'v1.3.0-alpha' ] => false,
-%         [ '~1.2',          'v1.2.3-alpha' ] => true,
-%         [ '~1.2',          'v2.0.0-alpha' ] => false,
-%         [ '~1',            'v1.2.3-alpha' ] => true,
-%         [ '~1',            'v2.0.0-alpha' ] => false,
-%         [ '1.2.x',         'v1.2.3-alpha' ] => true,
-%         [ '1.2.x',         'v1.3.0-alpha' ] => false,
-%         [ '1.x',           'v1.2.3-alpha' ] => true,
-%         [ '1.x',           'v2.0.0-alpha' ] => false,
-
-%         [ '1.2.3',         'v1.2.3' ] => true,
-%         [ '>=1.2.3',       'v1.2.3' ] => true,
-%         [ '<=1.2.3',       'v1.2.3' ] => true,
-%         [ '>= 1.2.3',      'v1.2.3' ] => true,
-%         [ '<= 1.2.3',      'v1.2.3' ] => true,
-%         [ '1.2.3 - 1.2.4', 'v1.2.3' ] => true,
-%         [ '~1.2.3',        'v1.2.3' ] => true,
-%         [ '~1.2',          'v1.2.3' ] => true,
-%         [ '~1',            'v1.2.3' ] => true,
-%         [ '1.2.x',         'v1.2.3' ] => true,
-%         [ '1.x',           'v1.2.3' ] => true,
-
-%         [ '1.2.3',         'v1.2.4' ] => false,
-%         [ '>=1.2.3',       'v1.2.4' ] => true,
-%         [ '<=1.2.3',       'v1.2.4' ] => false,
-%         [ '>= 1.2.3',      'v1.2.4' ] => true,
-%         [ '<= 1.2.3',      'v1.2.4' ] => false,
-%         [ '1.2.3 - 1.2.4', 'v1.2.4' ] => true,
-%         [ '~1.2.3',        'v1.2.4' ] => true,
-%         [ '~1.2',          'v1.2.4' ] => true,
-%         [ '~1',            'v1.2.4' ] => true,
-%         [ '1.2.x',         'v1.2.4' ] => true,
-%         [ '1.x',           'v1.2.4' ] => true,
-%       }
-
-%       suitability.each do |arguments, expected|
-%         range, vstring = arguments
-%         actual = SemVer[range] === SemVer.new(vstring)
-%         actual.should == expected
-%       end
-%     end
-%   end
+        ?_assertNot(versions:matches(versions:constraints("1.2.3"), versions:version(<<"v1.2.4">>))),
+        ?_assert(versions:matches(versions:constraints(">=1.2.3"), versions:version(<<"v1.2.4">>))),
+        ?_assertNot(versions:matches(versions:constraints("<=1.2.3"), versions:version(<<"v1.2.4">>))),
+        ?_assert(versions:matches(versions:constraints(">= 1.2.3"), versions:version(<<"v1.2.4">>))),
+        ?_assertNot(versions:matches(versions:constraints("<= 1.2.3"), versions:version(<<"v1.2.4">>))),
+        % ?_assert(versions:matches(versions:constraints("1.2.3 - 1.2.4"), versions:version(<<"v1.2.4">>))),
+        ?_assert(versions:matches(versions:constraints("~1.2.3"), versions:version(<<"v1.2.4">>))),
+        ?_assert(versions:matches(versions:constraints("~1.2"), versions:version(<<"v1.2.4">>))),
+        ?_assert(versions:matches(versions:constraints("~1"), versions:version(<<"v1.2.4">>))),
+        ?_assert(versions:matches(versions:constraints("1.2.x"), versions:version(<<"v1.2.4">>))),
+        ?_assert(versions:matches(versions:constraints("1.x"), versions:version(<<"v1.2.4">>)))
+    ].
 
 %   describe 'instantiation' do
 %     it 'should raise an exception when passed an invalid version string' do
