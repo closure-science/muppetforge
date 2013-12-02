@@ -25,7 +25,7 @@ bin(lt) -> <<"<">>;
 bin(lte) -> <<"<=">>;
 bin(gt) -> <<">">>;
 bin(gte) -> <<">=">>;
-bin({Major, Minor, Patch, undefined}) ->
+bin({Major, Minor, Patch, <<>>}) ->
     Maj = integer_to_binary(Major),
     Min = integer_to_binary(Minor),
     Pat = integer_to_binary(Patch), 
@@ -49,8 +49,9 @@ bin_join([H|T], Sep) ->
 
 
 -spec version( binary()) -> version_type().
-version(StrOrBinary)->
-    {_Len, Version} = version_tuple_from_stream(StrOrBinary),
+version(Binary)->
+    {Len, Version} = version_tuple_from_stream(Binary),
+    Len = byte_size(Binary),
     Version.
 
 -spec max( version_type(), version_type()) -> version_type().
@@ -149,15 +150,15 @@ tokenize(Stream, Accum, version) ->
 wildcard_to_tokens([MajorStr, MinorStr]) ->
     Major = list_to_integer(MajorStr),
     Minor = list_to_integer(MinorStr),
-    [gte, {Major, Minor, 0, undefined}, lt, {Major, Minor+1, 0, undefined}];
+    [gte, {Major, Minor, 0, <<>>}, lt, {Major, Minor+1, 0, <<>>}];
 wildcard_to_tokens([MajorStr]) ->
     Major = list_to_integer(MajorStr),
-    [gte, {Major, 0, 0, undefined}, lt, {Major+1, 0, 0, undefined}].
+    [gte, {Major, 0, 0, <<>>}, lt, {Major+1, 0, 0, <<>>}].
 
 version_tuple_from_stream(Stream) when is_binary(Stream) ->
     version_tuple_from_stream(binary_to_list(Stream));
 version_tuple_from_stream(Stream) ->
-    case re:run(Stream, "(\\d+)\\.(\\d+)\\.(\\d+)(?:-(\\S+))?", [{capture, all, list}]) of
-        {match, [All, Major, Minor, Patch]} ->  {length(All), {list_to_integer(Major), list_to_integer(Minor), list_to_integer(Patch), undefined }};
+    case re:run(Stream, "^[vV]?(\\d+)\\.(\\d+)\\.(\\d+)(?:-(\\S+))?", [{capture, all, list}]) of
+        {match, [All, Major, Minor, Patch]} ->  {length(All), {list_to_integer(Major), list_to_integer(Minor), list_to_integer(Patch), <<>> }};
         {match, [All, Major, Minor, Patch, Special]} ->  {length(All), {list_to_integer(Major), list_to_integer(Minor), list_to_integer(Patch), list_to_binary(Special) }}
     end.
