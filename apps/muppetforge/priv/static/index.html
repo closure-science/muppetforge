@@ -62,46 +62,117 @@
     <h2>Overview</h2>
     The <a href="http://forge.puppetlabs.com">Puppet Forge</a> is the central repository for Puppet modules.
     No packages nor sources to install a private Puppet Forge are available, its API is undocumented and it lacks an endpoint to automatize deployment of modules.
-    This project is born from the necessity of a private Forge installation in an ecosystem knit for <a href="http://en.wikipedia.org/wiki/Continuous_integration">CI</a> and/or <a href="http://en.wikipedia.org/wiki/Continuous_delivery">CD</a>.
+    This project is born from the necessity of a private Forge installation in an ecosystem knit for <a href="http://en.wikipedia.org/wiki/Continuous_integration"><abbr title="Continuous Integration" class="initialism">CI</abbr></a> and/or <a href="http://en.wikipedia.org/wiki/Continuous_delivery"><abbr title="Continuous Delivery/Deploy" class="initialism">CD</abbr></a>.
 
-    <h2>Puppet integration</h2>
+    <h2>Integrating with Puppet</h2>
     The Muppet Forge exposes an API compatible with Puppet Forge, therefore it integrates naturally with the <a href="http://docs.puppetlabs.com/puppet/3/reference/modules_installing.html">Puppet module tool</a>.
     Just point to your Muppet Forge installation in puppet.conf:
     <pre style="margin-top: 14px;"><code>[main]
     module_repository = http://localhost:8080/mf</code></pre>
-    <h3>The muppetforge/integration module</h3>
+    Or provide the <code>--module_repository</code> option  when invoking the Puppet module tool:
+    <pre style="margin-top: 14px;"><code>puppet module search --module_repository=http://localhost:8080/mf</code></pre>
+
+    <h4>The muppetforge/integration Puppet module</h4>
     To aid integration with the new endpoints defined in Muppet Forge, a Puppet module is provided.
     It contais the <code>deploy</code> action for the Puppet module tool, and the <code>require_module</code> function.
-    <h4>puppet module deploy (todo: move to another section)</h4>
-    This Puppet Face adds the <code>deploy</code> action to the <code>puppet module</code> face. It is used to release a new module to a Muppet Forge instance.
-    <pre style="margin-top: 14px;"><code>fmeden@Eve:~/projects/fmeden-sample$ puppet module build
-Notice: Building /home/fmeden/projects/fmeden-sample for release
-Module built: /home/fmeden/projects/fmeden-sample/pkg/fmeden-sample-0.1.0.tar.gz
-fmeden@Eve:~/projects/fmeden-sample$ puppet module deploy pkg/fmeden-sample-0.1.0.tar.gz --module_repository=http://192.168.1.219:8080/mf
-Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1.219:8080/mf ...
-{"result":"success"}</code></pre>
-    <h4>require_module</h4>
-    TODO: later
+
     <h2>Configuring an upstream forge</h2>
-    Muppet Forge can be configured to mirror and automatically keep in sync with another forge.
-    Just add a Forge URL in the "Upstream" panel: Muppet FOrge will periodically check for and mirror new releases.
-    <h3>Blacklisting modules</h3>
+    Muppet Forge can be configured to mirror and automatically keep in sync with another Forge.
+    Just add a Forge URL in the "Upstream" panel: Muppet Forge will periodically check for and mirror new releases.
+
+    <h4>Blacklisting modules</h4>
     Unwanted packages can be excluded from mirroring from an upstream forge by configuring a blacklist entry matching the module.
     A blacklist entry is made of source forge, author, module name and version.
     To prevent a release from being mirrored, all of the specified conditions must match.
     Already mirrored modules matching a blacklist entry are not removed.
-    <h2>API documentation</h2>
-    <ul>
-        <li><code>/mf/modules.json</code></li>
-        <li><code>/mf/api/v1/releases.json</code></li>
-        <li><code>/mf/api/deploy</code></li>
-        <li><code>/mf/api/blacklist</code></li>
-        <li><code>/mf/api/upstream</code></li>
-        <li><code>/mf/api/errors</code></li>
-        <li><code>/mf/api/info</code></li>
-        <li><code>/mf/{author}/{modulename}.json</code></li>
-    </ul>
 
+    <h2>Deploying a module</h2>
+    To deploy a module, just POST the module tarball to the apposite endpoint.
+
+    <h4>With CURL</h4>
+    <pre><code>caligin@theleth:~/projects/fmeden-sample$ puppet module build
+Notice: Building /home/caligin/projects/fmeden-sample for release
+Module built: /home/caligin/projects/fmeden-sample/pkg/fmeden-sample-0.1.0.tar.gz
+caligin@theleth:~/projects/fmeden-sample$ curl -X POST --data-binary @pkg/fmeden-sample-0.1.0.tar.gz http://localhost:8080/mf/api/deploy
+"ok"</code></pre>
+
+    <h4>With Puppet</h4>
+    If you installed the <code>muppetforge/integration</code> puppet module, a new command will be available to the Puppet module tool:
+    <pre style="margin-top: 14px;"><code>fmeden@Eve:~/projects/fmeden-sample$ puppet module build
+Notice: Building /home/fmeden/projects/fmeden-sample for release
+Module built: /home/fmeden/projects/fmeden-sample/pkg/fmeden-sample-0.1.0.tar.gz
+fmeden@Eve:~/projects/fmeden-sample$ puppet module deploy pkg/fmeden-sample-0.1.0.tar.gz --module_repository=http://localhost:8080/mf
+Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1.219:8080/mf ...
+{"result":"success"}</code></pre>
+
+
+    <h2>API documentation</h2>
+    <div class="panel panel-default">
+      <div class="panel-heading"><code>/mf/modules.json</code><span class="label label-warning pull-right">Puppet</span></div>
+      <div class="panel-body">
+        <dl class="dl-horizontal">
+          <dt>GET</dt><dd>Retrieves the list of modules served by the Forge. Supports the optional query parameter <code>q=&lt;query terms&gt;</code></dd>
+        </dl>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading"><code>/mf/api/v1/releases.json</code><span class="label label-warning pull-right">Puppet</span></div>
+      <div class="panel-body">
+        <dl class="dl-horizontal">
+          <dt>GET</dt><dd>Retrieves the available releases for a module along with their details (tarball location, dependencies...). Requires the <code>module=&lt;author&gt;/&lt;module name&gt;</code> query parameter and supports the optional <code>version=&lt;version constraints&gt;</code></dd>
+        </dl>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading"><code>/mf/{author}/{modulename}.json</code><span class="label label-warning pull-right">Puppet</span></div>
+      <div class="panel-body">
+        <dl class="dl-horizontal">
+          <dt>GET</dt><dd>Retrieves detail information for a single module.
+        </dl>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading"><code>/mf/api/deploy</code></div>
+      <div class="panel-body">
+        <dl class="dl-horizontal">
+          <dt>POST</dt><dd>Deploy a Puppet module tarball into the Forge. The tarball must be given as the request body. No other parameters are required as metadata will be extracted directly from the tarball. Missing or invalid metadata will incur in an error.</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading"><code>/mf/api/blacklist</code></div>
+      <div class="panel-body">
+        <dl class="dl-horizontal">
+            <dt>GET</dt><dd>Retrieves the blacklist rules.</dd>
+            <dt>PUT</dt><dd>Overwrites the blacklist rules with new ones.</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading"><code>/mf/api/upstream</code></div>
+      <div class="panel-body">
+        <dl class="dl-horizontal">
+          <dt>GET</dt><dd>Retrieves the list of upstream Forges</dd>
+          <dt>PUT</dt><dd>Overwrites the list of upstream Forges</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading"><code>/mf/api/errors</code></div>
+      <div class="panel-body">
+        <dl class="dl-horizontal">
+          <dt>GET</dt><dd>Retrieves the list of errors got during the mirroring job.</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading"><code>/mf/api/info</code></div>
+      <div class="panel-body">
+        <dl class="dl-horizontal">
+          <dt>GET</dt><dd>Retrieves some informational counters about the Forge status.</dd>
+        </dl>
+      </div>
+    </div>
 </script>
 
 <script id="animal-template" type="text/x-handlebars-template">

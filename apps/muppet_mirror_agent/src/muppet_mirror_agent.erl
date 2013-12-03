@@ -58,6 +58,7 @@ info() ->
 
 init([]) ->
     StorageFileName = filename:join(code:priv_dir(?MODULE), "storage"),
+    filelib:ensure_dir(StorageFileName),
     {ok, storage} = dets:open_file(storage, [{file,  StorageFileName}]),
     Retards = dets_value(storage, retards, []),
     Upstream = dets_value(storage, upstream, []),
