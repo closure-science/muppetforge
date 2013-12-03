@@ -83,6 +83,13 @@ handle(Req, {upstream, <<"PUT">>}) ->
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
     {ok, Req2, undefined};
 
+handle(Req, {info, <<"GET">>}) ->
+    MirrorAgentInfo = muppet_mirror_agent:info(),
+    RepositoryInfo = muppet_repository:info(),
+    Serializable = {MirrorAgentInfo ++ RepositoryInfo},
+    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(Serializable), Req),
+    {ok, Req2, undefined};
+
 
 handle(Req, {_, Method }) ->
     {ok, Req2} = cowboy_req:reply(405, ?HEADERS, jiffy:encode([<<"unsupported method">>, Method]), Req),

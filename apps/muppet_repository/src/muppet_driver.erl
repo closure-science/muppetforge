@@ -1,5 +1,5 @@
 -module(muppet_driver).
--export([new/0, new/1, find_release/4, find/2, store/3, search/2, serializable/1, author_and_module/1, knows/4]).
+-export([new/0, new/1, find_release/4, find/2, store/3, search/2, serializable/1, author_and_module/1, knows/4, info/1]).
 
 -define(FULL_NAME(Author, ModuleName), <<Author/binary, <<"/">>/binary, ModuleName/binary>>).
 -define(FILE_NAME(Author, ModuleName, Version), << <<"/">>/binary , Author/binary, <<"-">>/binary, ModuleName/binary, <<"-">>/binary, Version/binary, <<".tar.gz">>/binary >>).
@@ -205,3 +205,11 @@ serializable_release(Release) ->
         {dependencies, [[element(1, D), versions:to_binary(element(2, D))] || D <- Release#release.dependencies ]}
     ]}.
 
+% -----------------------------------------------------------------------------
+-spec info(state()) -> {Modules::integer(), Releases::integer()}.
+% -----------------------------------------------------------------------------
+info(Modules) ->
+    ReleasesOfModules = [ length(M#module.releases) || M <- Modules ],
+    lists:foldl(fun(R,{ModulesCount, ReleasesCount}) ->
+        {ModulesCount+1, ReleasesCount+R}
+    end, {0,0}, ReleasesOfModules).

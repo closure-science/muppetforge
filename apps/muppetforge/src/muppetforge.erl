@@ -13,6 +13,7 @@ start_httpd() ->
             {"/mf/api/blacklist", muppetforge_handler, [blacklist]},
             {"/mf/api/upstream", muppetforge_handler, [upstream]},
             {"/mf/api/errors", muppetforge_handler, [errors]},
+            {"/mf/api/info", muppetforge_handler, [info]},
             {"/mf/:author/:modulename", [{modulename, function, fun module_name/1}], muppetforge_handler, [module]},
             {"/mf/[...]", cowboy_static, {dir, muppet_repository:assets_dir() }},
             {"/", cowboy_static,  {file, code:priv_dir(muppetforge) ++ "/static/index.html"}},

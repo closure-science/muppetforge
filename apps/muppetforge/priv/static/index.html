@@ -38,6 +38,9 @@
     <button type="button" id="modules_button" class="btn btn-success" style="margin-left: -20px; border-top-left-radius: 0px; border-bottom-left-radius: 0px">
         <span class="glyphicon glyphicon-search"></span>&nbsp;
     </button>
+    <button type="button" class="btn btn-info navbar-btn" id="info_button">
+        &nbsp;<span class="glyphicon glyphicon-info-sign"></span>&nbsp;
+    </button>
   </div>
 </div>
 </div>
@@ -50,14 +53,39 @@
 
 <div id="footer">
   <div class="container">
-    <p class="text-muted credit" style="text-align: center">Released under <a href="http://opensource.org/licenses/BSD-3-Clause">BSD 3-Clause License</a> by <a href="http://twitter.com/caligin35">fmeden</a>, <a href="http://twitter.com/rferranti">rferranti</a> @ <a href="http://closure-science.org">Closure science</a>, Emaze Networks.</p>
+    <p class="text-muted credit" style="text-align: center">Released under <a href="http://opensource.org/licenses/BSD-3-Clause">BSD 3-Clause License</a> by <a href="http://twitter.com/caligin35">fmeden</a>, <a href="http://twitter.com/rferranti">rferranti</a> @ <a href="http://closure-science.org">Closure Science</a>, Emaze Networks.</p>
   </div>
 </div>
+
+<script id="info-template" type="text/x-handlebars-template">
+    <h1>INFO</h1>
+</script>
+
 <script id="animal-template" type="text/x-handlebars-template">
-  <center>
-      <img class="hidden-xs" src="animal.png" />
-      <img class="visible-xs" src="animal-small.png">
-  </center>
+    <div class="row">
+        <div class="col-md-4">
+            <div class="panel panel-success">
+                <div class="panel-heading">Forge Status</div>
+                <div class="panel-body">Serving {{releases}} releases of {{modules}} modules.</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="panel panel-primary">
+                <div class="panel-heading">Upstreams Configuration</div>
+                <div class="panel-body">Mirroring from {{upstream}} upstream Forges with {{retards}} blacklist rules.</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="panel panel-info">
+                <div class="panel-heading">Mirroring Job Status</div>
+                <div class="panel-body">Retrieval of {{tbd}} modules pending, {{errors}} errors.</div>
+            </div>
+        </div>
+    </div>
+    <center>
+        <img class="hidden-xs" src="animal.png" />
+        <img class="visible-xs" src="animal-small.png">
+    </center>
 </script>
 
 <script id="errors-template" type="text/x-handlebars-template">
@@ -74,7 +102,7 @@
         <div class="panel-heading">{{error_type}} {{error}} <div class="pull-right">{{ts_as_date_string at}}</div></div>
         <div class="panel-body">
             {{#each stack_trace}}
-                <div>{{module}}:{{fn}}/{{arity}} {{file}}@{{line}}</div>
+                {{file}}@{{line}} {{module}}:{{fn}}/{{arity}}
             {{/each}}
         </div>
         <div class="panel-footer">{{base_url}} {{author}}/{{module}} {{version}}</div>
@@ -195,6 +223,7 @@ Handlebars.registerHelper('ts_as_date_string', function(timestamp) {
 function muppet_forge(){
     this.templates = {}
     this.data = {}
+    this.templates.info = Handlebars.compile($("#info-template").html())
     this.templates.animal = Handlebars.compile($("#animal-template").html())
     this.templates.errors = Handlebars.compile($("#errors-template").html())
     this.templates.upstream = Handlebars.compile($("#upstream-template").html())
@@ -207,8 +236,16 @@ muppet_forge.prototype.result = function(content){
     $('#results').html(content);
 }
 
+muppet_forge.prototype.info = function(){
+    this.result(this.templates.info());
+}
+
 muppet_forge.prototype.animal = function(){
-    this.result(this.templates.animal());
+    var self = this
+    $.getJSON( "mf/api/info", function( info ) {
+        self.data.animal = info;
+        self.result(self.templates.animal(info));
+    });
 }
 
 muppet_forge.prototype.upstream = function(){
@@ -312,6 +349,7 @@ var mf = null;
 
 $(document).ready(function(){
     mf = new muppet_forge();
+    $('#info_button').click(mf.info.bind(mf));
     $('#animal_button').click(mf.animal.bind(mf));
     $('#errors_button').click(mf.errors.bind(mf));
     $('#upstream_button').click(mf.upstream.bind(mf));

@@ -1,7 +1,7 @@
 -module(muppet_repository).
 
 -behaviour(gen_server).
--export([find/1, search/1, find_release/2, store/1, assets_dir/0, status/0, knows/3]).
+-export([find/1, search/1, find_release/2, store/1, assets_dir/0, status/0, knows/3, info/0]).
 -export([init/1, handle_cast/2, handle_call/3, handle_info/2, code_change/3, terminate/2]).
 -export([start_link/0]).
 
@@ -55,6 +55,12 @@ knows(Author, Module, Version) ->
 status() ->
     sys:get_status(?MODULE).
 
+% -----------------------------------------------------------------------------
+-spec info() -> [{atom(), any()}].
+% -----------------------------------------------------------------------------
+info() ->
+    gen_server:call(?MODULE, info).
+
 
 init([]) ->
     filelib:ensure_dir(filename:join(assets_dir(), "anyname")),
@@ -80,7 +86,13 @@ handle_call({search_modules, Terms}, From, State) ->
 handle_call({knows, Author, Module, Version}, From, State) ->
     async_(From, State, fun() -> muppet_driver:knows(State, Author, Module, Version) end);
 handle_call({find_release, Author, Name, VersionConstraints}, From, State) ->
-    async_(From, State, fun() -> muppet_driver:find_release(State, Author, Name, VersionConstraints) end).
+    async_(From, State, fun() -> muppet_driver:find_release(State, Author, Name, VersionConstraints) end);
+
+handle_call(info, From, State) ->
+    async_(From, State, fun() ->
+        {Modules, Releases} = muppet_driver:info(State),
+        [{modules, Modules}, {releases, Releases}]
+    end).
 
 handle_info(_Info, State) ->
     {noreply, State}.

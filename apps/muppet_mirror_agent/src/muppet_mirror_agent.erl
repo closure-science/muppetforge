@@ -2,6 +2,7 @@
 -behaviour(gen_server).
 -export([init/1, handle_cast/2, handle_call/3, handle_info/2, code_change/3, terminate/2, proplists_to_blacklist/1, serializable_blacklist/1]).
 -export([start_link/0]).
+-export([info/0]).
 -export([store_upstream/1, fetch_upstream/0]).
 -export([store_blacklist/1, fetch_blacklist/0]).
 -export([reset_errors/0, fetch_errors/0, serializable_errors/1]).
@@ -48,6 +49,11 @@ fetch_errors() ->
     gen_server:call(?MODULE, fetch_errors).
 
 
+% -----------------------------------------------------------------------------
+-spec info() -> [{atom(), any()}].
+% -----------------------------------------------------------------------------
+info() ->
+    gen_server:call(?MODULE, info).
 
 
 init([]) ->
@@ -79,6 +85,21 @@ handle_call(fetch_upstream, _From, State) ->
     {reply, State#state.upstream, State};
 handle_call(fetch_errors, _From, State) ->
     {reply, State#state.errors, State};
+handle_call(info, From, State) ->
+    spawn_link(fun() ->
+        ErrorCount = dict:size(State#state.errors),
+        RetardsCount = length(State#state.retards),
+        UpstreamCount = dict:size(State#state.upstream),
+        TbdCount = dict:size(State#state.tbd),
+        Info = [
+            {errors, ErrorCount},
+            {retards, RetardsCount},
+            {upstream, UpstreamCount},
+            {tbd, TbdCount}
+        ],
+        gen_server:reply(From, Info)
+    end),
+    {noreply, State};
 handle_call(_Req, _From, State) ->
     {reply, ok, State}.
 

@@ -105,13 +105,10 @@ compare(lte, LHS, RHS) ->
     compare(eq, LHS, RHS) orelse compare(lt, LHS, RHS).
 
 special_gt(LhSpecial, <<>>) ->
-    io:format("1 ~p ",[LhSpecial]),
     false;
 special_gt(<<>>, RhSpecial) ->
-    io:format("2 ~p ",[RhSpecial]),
     true;
 special_gt(LhSpecial, RhSpecial) ->
-    io:format("3 ~p ~p",[LhSpecial, RhSpecial]),
     LhSpecial > RhSpecial.
 
 
