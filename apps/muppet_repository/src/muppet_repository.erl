@@ -5,38 +5,53 @@
 -export([init/1, handle_cast/2, handle_call/3, handle_info/2, code_change/3, terminate/2]).
 -export([start_link/0]).
 
-
+% -----------------------------------------------------------------------------
 -spec start_link() -> {ok,pid()} | ignore | {error, {already_started, pid()} | term()}.
+% -----------------------------------------------------------------------------
 start_link() ->
     process_flag(trap_exit, true),
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+% -----------------------------------------------------------------------------
 -spec assets_dir() -> [char()].
+% -----------------------------------------------------------------------------
 assets_dir() -> 
     code:priv_dir(?MODULE) ++ "/assets".
 
+% -----------------------------------------------------------------------------
 -spec find_release({binary(), binary()}, [versions:constraint_type()] ) -> {ok, dict()} | {missing_dependency, FullName::binary()}.
+% -----------------------------------------------------------------------------
 find_release({Author, Name}, VersionConstraints) ->
     gen_server:call(?MODULE, {find_release, Author, Name, VersionConstraints}).
 
+% -----------------------------------------------------------------------------
 -spec find(binary()) -> {true, muppet_driver:module_type()} | {false, FullName::binary()}.
+% -----------------------------------------------------------------------------
 find(FullName) ->
     gen_server:call(?MODULE, {find_module, FullName}).
 
+% -----------------------------------------------------------------------------
 -spec store( binary() ) -> ok | {error, {Error::any(), Reason::any()}}.
+% -----------------------------------------------------------------------------
 store(Tarball) ->
     gen_server:call(?MODULE, {store_module, Tarball}).
 
+% -----------------------------------------------------------------------------
 -spec search( [binary()] ) -> [muppet_driver:module_type()].
+% -----------------------------------------------------------------------------
 search(Terms) ->
     gen_server:call(?MODULE, {search_modules, Terms}).
 
+% -----------------------------------------------------------------------------
 -spec knows(binary(), binary(), versions:version_type() ) -> boolean().
+% -----------------------------------------------------------------------------
 knows(Author, Module, Version) ->
     gen_server:call(?MODULE, {knows, Author, Module, Version}).
 
 
+% -----------------------------------------------------------------------------
 -spec status() -> term().
+% -----------------------------------------------------------------------------
 status() ->
     sys:get_status(?MODULE).
 

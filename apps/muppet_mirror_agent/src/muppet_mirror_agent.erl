@@ -8,7 +8,7 @@
 
 -define(TICK_INTERVAL_MILLIS, 10000).
 -define(REFRESH_INTERVAL_MICROS, 60 * 60* 1000* 1000 * 1000).
--record(state, { retards = [], upstream = dict:new(), tbd = dict:new(), errors = dict:new() }).
+-record(state, { retards =[], upstream = dict:new(), tbd = dict:new(), errors = dict:new() }).
 
 -compile(export_all).
 % -----------------------------------------------------------------------------
@@ -48,15 +48,25 @@ fetch_errors() ->
     gen_server:call(?MODULE, fetch_errors).
 
 
+
+
 init([]) ->
+    StorageFileName = filename:join(code:priv_dir(?MODULE), "storage"),
+    {ok, storage} = dets:open_file(storage, [{file,  StorageFileName}]),
+    Retards = dets_value(storage, retards, []),
+    Upstream = dets_value(storage, upstream, []),
     process_flag(trap_exit, true),
     self() ! tick,
-    {ok, #state{}}.
+    {ok, #state{upstream = upstream_from_base_urls(Upstream), retards = Retards}}.
 
 handle_cast({store_upstream, BaseUrls}, State) ->
-    NewUpstream = dict:from_list([{BaseUrl, {0,0,0}} || BaseUrl <- BaseUrls]),
+    NewUpstream = upstream_from_base_urls(BaseUrls),
+    ok = dets:insert(storage, {upstream, BaseUrls}),
+    ok = dets:sync(storage),    
     {noreply, State#state{ upstream = NewUpstream, tbd = dict:new(), errors = dict:new() }};
 handle_cast({store_blacklist, Retards}, State) ->
+    ok = dets:insert(storage, {retards, Retards}),
+    ok = dets:sync(storage),
     {noreply, State#state{ retards=Retards }};
 handle_cast(reset_errors, State) ->
     {noreply, State#state{ errors=dict:new() }};
@@ -123,9 +133,18 @@ handle_info(Msg, State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-terminate(_Reason, _State) ->
+terminate(_Reason, State) ->
+    dets:close(storage),
     ok.
 
+upstream_from_base_urls(BaseUrls) ->
+    dict:from_list([{BaseUrl, {0,0,0}} || BaseUrl <- BaseUrls]).
+    
+dets_value(Name, Key, Default) ->
+    case dets:lookup(Name, Key) of
+        [{Key, Value}] -> Value;
+        _ -> Default
+    end.
 
 allowed([], {BaseUrl, Author, Module, Version}) ->
     true;    
