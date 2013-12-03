@@ -9,7 +9,7 @@
 
 -define(TICK_INTERVAL_MILLIS, 10000).
 -define(REFRESH_INTERVAL_MICROS, 60 * 60* 1000* 1000 * 1000).
--record(state, { retards =[], upstream = dict:new(), tbd = dict:new(), errors = dict:new() }).
+-record(state, { pids=[], retards =[], upstream = dict:new(), tbd = dict:new(), errors = dict:new() }).
 
 -compile(export_all).
 % -----------------------------------------------------------------------------
@@ -86,18 +86,13 @@ handle_call(fetch_upstream, _From, State) ->
 handle_call(fetch_errors, _From, State) ->
     {reply, State#state.errors, State};
 handle_call(info, From, State) ->
-    spawn_link(fun() ->
-        ErrorCount = dict:size(State#state.errors),
-        RetardsCount = length(State#state.retards),
-        UpstreamCount = dict:size(State#state.upstream),
-        TbdCount = dict:size(State#state.tbd),
-        Info = [
-            {errors, ErrorCount},
-            {retards, RetardsCount},
-            {upstream, UpstreamCount},
-            {tbd, TbdCount}
-        ],
-        gen_server:reply(From, Info)
+    spawn(fun() ->
+        gen_server:reply(From, [
+            {errors, dict:size(State#state.errors)},
+            {retards, length(State#state.retards)},
+            {upstream, dict:size(State#state.upstream)},
+            {tbd, dict:size(State#state.tbd)}
+        ])
     end),
     {noreply, State};
 handle_call(_Req, _From, State) ->
@@ -106,18 +101,22 @@ handle_call(_Req, _From, State) ->
 handle_info(tick, State) ->
     ThisPid = self(),
     {Now, UpstreamBaseUrls} = upstream_to_be_refreshed(State),
-    case UpstreamBaseUrls of
+    Pids = case UpstreamBaseUrls of
         [UpstreamBaseUrl| _] -> 
-            spawn_link(fun() -> refresh_upstream(ThisPid, Now, UpstreamBaseUrl) end);
+            Pid = spawn_link(fun() -> refresh_upstream(ThisPid, Now, UpstreamBaseUrl) end),
+            [Pid];
         [] -> 
             case dict:fetch_keys(State#state.tbd) of
-                [] ->  timer:send_after(?TICK_INTERVAL_MILLIS, tick);
+                [] ->  
+                    timer:send_after(?TICK_INTERVAL_MILLIS, tick),
+                    [];
                 [{AuthorAndModule, Version} = Coords|_] -> 
                     BaseUrl = dict:fetch(Coords, State#state.tbd),
-                    spawn_link(fun() -> fetch_and_store_tarball(ThisPid, Now, BaseUrl, AuthorAndModule, Version) end)
+                    Pid = spawn_link(fun() -> fetch_and_store_tarball(ThisPid, Now, BaseUrl, AuthorAndModule, Version) end),
+                    [Pid]
             end
     end,
-    {noreply, State};
+    {noreply, State#state{ pids = lists:append(Pids, State#state.pids)}};
 
 handle_info({upstream_metadata, At, UpstreamBaseUrl, VersionsFromUpstream}, State) ->
     Unknown = lists:filter(fun({BaseUrl, {{Author, Module}, Version}}) ->
@@ -144,9 +143,14 @@ handle_info({tarball_failed, At, BaseUrl, AuthorAndModule, Version, ErrorType, R
     NewErrors = dict:store({BaseUrl, AuthorAndModule, Version}, {At, {ErrorType, Reason, StackTrace}}, State#state.errors),
     {noreply, State#state{ tbd = NewTbd, errors = NewErrors}};
 
-handle_info({'EXIT', _Pid, _Reason}, State) ->
-    self() ! tick,
-    {noreply, State};
+handle_info({'EXIT', Pid, _Reason}, State) ->
+    NewPids = case lists:element(Pid, State#state.pids) of
+        false -> State#state.pids;
+        true ->
+            self() ! tick, 
+            lists:delete(Pid, State#state.pids)
+    end,
+    {noreply, State#state{ pids = NewPids }};
 
 handle_info(Msg, State) ->
     {noreply, State}.
