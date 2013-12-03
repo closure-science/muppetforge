@@ -45,12 +45,14 @@ handle(Req, {deploy, <<"POST">>}) ->
 
 handle(Req, {blacklist, <<"GET">>}) ->
     BlackList = muppet_mirror_agent:fetch_blacklist(),
-    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(BlackList), Req),
+    PropLists = muppet_mirror_agent:serializable_blacklist(BlackList),
+    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(PropLists), Req),
     {ok, Req2, undefined};
 
 handle(Req, {blacklist, <<"PUT">>}) ->
     {ok, BlacklistBinary, _} = cowboy_req:body(Req),
-    BlackList = jiffy:decode(BlacklistBinary),
+    PropLists = jiffy:decode(BlacklistBinary),
+    BlackList = muppet_mirror_agent:proplists_to_blacklist(PropLists),
     ok = muppet_mirror_agent:store_blacklist(BlackList),
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
     {ok, Req2, undefined};

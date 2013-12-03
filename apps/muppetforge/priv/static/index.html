@@ -50,7 +50,7 @@
 
 <div id="footer">
   <div class="container">
-    <p class="text-muted credit" style="text-align: center">Released under <a href="http://opensource.org/licenses/BSD-3-Clause">BSD 3-Clause License</a> by <a href="">fmeden</a>, <a href="">rferranti</a> @ <a href="http://closure-science.org">Closure science</a>.</p>
+    <p class="text-muted credit" style="text-align: center">Released under <a href="http://opensource.org/licenses/BSD-3-Clause">BSD 3-Clause License</a> by <a href="http://twitter.com/caligin35">fmeden</a>, <a href="http://twitter.com/rferranti">rferranti</a> @ <a href="http://closure-science.org">Closure science</a>, Emaze Networks.</p>
   </div>
 </div>
 <script id="animal-template" type="text/x-handlebars-template">
@@ -144,7 +144,17 @@
     {{/unless}}
     {{#each this}}
     <div class="panel panel-warning">
-        <div class="panel-body">{{base_url}}</div>
+        <div class="panel-body">
+            <button type="button" class="btn btn-default btn-sm pull-right" onclick="mf.del_blacklist({{@index}})">
+              <span class="glyphicon glyphicon-remove"></span>
+            </button>
+            <dl class="dl-horizontal">
+                <dt>Upstream</dt><dd>{{upstream}}{{#unless upstream}}<span class="text-muted">any</span>{{/unless}}</dd>
+                <dt>Author</dt><dd>{{author}}{{#unless author}}<span class="text-muted">any</span>{{/unless}}</dd>
+                <dt>Module</dt><dd>{{module}}{{#unless module}}<span class="text-muted">any</span>{{/unless}}</dd>
+                <dt>Version</dt><dd>{{version}}{{#unless version}}<span class="text-muted">any</span>{{/unless}}</dd>
+            </dl>
+        </div>
     </div>
     {{/each}}    
 </script>
@@ -197,6 +207,10 @@ muppet_forge.prototype.result = function(content){
     $('#results').html(content);
 }
 
+muppet_forge.prototype.animal = function(){
+    this.result(this.templates.animal());
+}
+
 muppet_forge.prototype.upstream = function(){
     var self = this;
     $.getJSON( "mf/api/upstream", function( upstream ) {
@@ -226,16 +240,14 @@ muppet_forge.prototype.modules = function(){
         self.result(self.templates.modules(modules));
     });    
 }
-muppet_forge.prototype.animal = function(){
-    this.result(this.templates.animal({
-        tw: $('#results').width()/2 - 320
-    }));
-}
 
 muppet_forge.prototype.add_blacklist = function(){
     var self = this;
     var entry = {
-        //TODO
+        upstream:  $('#blacklist-upstream-field').val() || null,
+        author: $('#blacklist-author-field').val() || null,
+        module: $('#blacklist-module-field').val() || null,
+        version: $('#blacklist-version-field').val() || null
     };
     this.data.blacklist.push(entry);
     $.ajax({
@@ -243,7 +255,7 @@ muppet_forge.prototype.add_blacklist = function(){
         dataType: 'json',        
         url: 'mf/api/blacklist',
         contentType: "application/json",
-        data: this.data.blacklist,
+        data: JSON.stringify(this.data.blacklist),
         success: function(){
             self.result(self.templates.blacklist(self.data.blacklist));
         }
@@ -308,9 +320,8 @@ $(document).ready(function(){
         if (e.which !== 13) return;
         mf.modules();
     })
-
     $('#modules_button').click(mf.modules.bind(mf));
-    mf.animal()
+    mf.animal();
 })
 
 

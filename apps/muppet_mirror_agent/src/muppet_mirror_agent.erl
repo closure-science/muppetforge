@@ -1,6 +1,6 @@
 -module(muppet_mirror_agent).
 -behaviour(gen_server).
--export([init/1, handle_cast/2, handle_call/3, handle_info/2, code_change/3, terminate/2]).
+-export([init/1, handle_cast/2, handle_call/3, handle_info/2, code_change/3, terminate/2, proplists_to_blacklist/1, serializable_blacklist/1]).
 -export([start_link/0]).
 -export([store_upstream/1, fetch_upstream/0]).
 -export([store_blacklist/1, fetch_blacklist/0]).
@@ -139,7 +139,7 @@ terminate(_Reason, State) ->
 
 upstream_from_base_urls(BaseUrls) ->
     dict:from_list([{BaseUrl, {0,0,0}} || BaseUrl <- BaseUrls]).
-    
+
 dets_value(Name, Key, Default) ->
     case dets:lookup(Name, Key) of
         [{Key, Value}] -> Value;
@@ -155,7 +155,7 @@ allowed([Bl|Cdr], El) ->
     end.
 blacklisted({BlBaseUrl, BlAuthor, BlModule, BlVersion}, {BaseUrl, Author, Module, Version}) ->
     bl(BlBaseUrl, BaseUrl) andalso bl(BlAuthor, Author) andalso bl(BlModule, Module) andalso bl(BlVersion, Version).
-bl(undefined, El) -> true;        
+bl(null, El) -> true;        
 bl(BlEl, El) -> BlEl =:= El.
 
 refresh_upstream(Parent, Now, UpstreamBaseUrl) ->
@@ -200,6 +200,26 @@ fetch_tarball_binary(BaseUrl, {Author, Module} = AuthorAndModule, Version) ->
     RemoteFileName = proplists:get_value(<<"file">>, Release),
     {ok, {{_, 200, _}, _, TarBody}} = httpc:request(get, {binary_to_list(BaseUrl) ++ binary_to_list(RemoteFileName), []}, [], [{body_format, binary}]),
     TarBody.
+
+proplists_to_blacklist(Pls) ->
+    [proplist_to_blacklist_entry(Pl) || {Pl} <- Pls].
+proplist_to_blacklist_entry(Pl) ->
+    Upstream = proplists:get_value(<<"upstream">>, Pl),
+    Author = proplists:get_value(<<"author">>, Pl),
+    Module = proplists:get_value(<<"module">>, Pl),
+    Version = proplists:get_value(<<"version">>, Pl),
+    {Upstream, Author, Module, Version}.
+
+serializable_blacklist(Bl) ->
+    [serializable_blacklist_entry(B) || B <- Bl].
+    
+serializable_blacklist_entry({UpstreamBaseUrl, Author, Module, Version}) ->
+    {[
+        {upstream, UpstreamBaseUrl},
+        {author, Author},
+        {module, Module},
+        {version, Version}
+    ]}.
 
 serializable_errors(Errors) ->
     lists:map(fun serializable_error/1, dict:to_list(Errors)).
