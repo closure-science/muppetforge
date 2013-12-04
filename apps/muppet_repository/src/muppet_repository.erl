@@ -19,7 +19,7 @@ assets_dir() ->
     code:priv_dir(?MODULE) ++ "/assets".
 
 % -----------------------------------------------------------------------------
--spec find_release({binary(), binary()}, [versions:constraint_type()] ) -> {ok, dict()} | {missing_dependency, FullName::binary()}.
+-spec find_release({binary(), binary()}, [versions:constraint_type()] ) -> {ok, dict()} | {not_found, FullName::binary()}.
 % -----------------------------------------------------------------------------
 find_release({Author, Name}, VersionConstraints) ->
     gen_server:call(?MODULE, {find_release, Author, Name, VersionConstraints}).
