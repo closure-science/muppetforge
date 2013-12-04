@@ -1,7 +1,7 @@
 -module(muppet_repository).
 
 -behaviour(gen_server).
--export([find/1, search/1, find_release/2, store/1, assets_dir/0, status/0, knows/3, info/0]).
+-export([find/1, search/1, delete/3, find_release/2, store/1, assets_dir/0, status/0, knows/3, info/0]).
 -export([init/1, handle_cast/2, handle_call/3, handle_info/2, code_change/3, terminate/2]).
 -export([start_link/0]).
 
@@ -29,6 +29,12 @@ find_release({Author, Name}, VersionConstraints) ->
 % -----------------------------------------------------------------------------
 find(FullName) ->
     gen_server:call(?MODULE, {find_module, FullName}).
+
+% -----------------------------------------------------------------------------
+-spec delete(binary(), binary(), versions:version_type()) -> ok | error.
+% -----------------------------------------------------------------------------
+delete(Author, Name, Version) ->
+    gen_server:call(?MODULE, {delete_release, Author, Name, Version}).
 
 % -----------------------------------------------------------------------------
 -spec store( binary() ) -> ok | {error, {Error::any(), Reason::any()}}.
@@ -78,6 +84,9 @@ handle_call({store_module, Tarball}, _From, State) ->
         {ok, _State} = R -> R;
         E -> {E, State}
     end,
+    {reply, Response, NewState};    
+handle_call({delete_release, Author, Name, Version}, _From, State) ->
+    {Response, NewState} = muppet_driver:delete(State, assets_dir(), {Author, Name, Version}),
     {reply, Response, NewState};    
 handle_call({find_module, FullName}, From, State) ->
     async_(From, State, fun() -> muppet_driver:find(State, FullName) end);

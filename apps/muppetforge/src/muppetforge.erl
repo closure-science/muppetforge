@@ -14,6 +14,7 @@ start_httpd() ->
             {"/mf/api/upstream", muppetforge_handler, [upstream]},
             {"/mf/api/errors", muppetforge_handler, [errors]},
             {"/mf/api/info", muppetforge_handler, [info]},
+            {"/mf/api/:author/:modulename/:version", muppetforge_handler, [release]},
             {"/mf/:author/:modulename", [{modulename, function, fun module_name/1}], muppetforge_handler, [module]},
             {"/mf/[...]", cowboy_static, {dir, muppet_repository:assets_dir() }},
             {"/", cowboy_static,  {file, code:priv_dir(muppetforge) ++ "/static/index.html"}},
@@ -23,12 +24,6 @@ start_httpd() ->
     cowboy:start_http(http, 100, [{port, 8080}], [ {env, [{dispatch, Dispatcher}]} ]).
 
 
-module_name(ModuleNameAndJsonSuffix) ->
-    ExtensionSize = byte_size(<<".json">>),
-    Size = byte_size(ModuleNameAndJsonSuffix),
-    case Size > ExtensionSize of 
-        true ->
-            Prefix = binary:part(ModuleNameAndJsonSuffix, {0, Size - ExtensionSize}),
-            {true, Prefix};
-        false -> false
-    end.
+module_name(PossiblySuffixed) ->
+    {match, [ModuleName]} = re:run(PossiblySuffixed, "(.*?)(?:\\.json)?$", [{capture, all_but_first, binary}]),
+    ModuleName.

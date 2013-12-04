@@ -1,5 +1,5 @@
 -module(muppet_driver).
--export([new/0, new/1, find_release/4, find/2, store/3, search/2, serializable/1, author_and_module/1, knows/4, info/1]).
+-export([new/0, new/1, find_release/4, find/2, store/3, delete/3, search/2, serializable/1, author_and_module/1, knows/4, info/1]).
 
 -define(FULL_NAME(Author, ModuleName), <<Author/binary, <<"/">>/binary, ModuleName/binary>>).
 -define(FILE_NAME(Author, ModuleName, Version), << <<"/">>/binary , Author/binary, <<"-">>/binary, ModuleName/binary, <<"-">>/binary, Version/binary, <<".tar.gz">>/binary >>).
@@ -35,7 +35,7 @@ new(AssetsDir) ->
 -spec knows(state(), Author::binary(), ModuleName::binary(), Version::versions:version_type()) -> boolean().
 % -----------------------------------------------------------------------------
 knows([Module|Rest], Author, ModuleName, Version) ->
-    case Author =:= Module#module.author andalso ModuleName =:= Module#module.name of
+    case Author =:= Module#module.author andalso ModuleName =:= Module#module.name andalso lists:keyfind(Version, 2, Module#module.releases) =/= false of
         true -> true;
         false -> knows(Rest, Author, ModuleName, Version)
     end;
@@ -85,6 +85,26 @@ find([Module|T], FullName) ->
 find([], FullName) ->
     {false, FullName}.
 
+
+% -----------------------------------------------------------------------------
+-spec delete(state(), string(), binary()) -> {ok, state()} | {error, state()}.
+% -----------------------------------------------------------------------------
+delete(Modules, AssetsDir, {Author, Name, Version}) ->
+    {Matching, Others} = lists:partition(fun(M) -> 
+        knows([M], Author, Name, Version)
+    end, Modules),
+    case Matching of
+        [] -> {error, Modules};
+        [M] -> 
+            V = versions:to_binary(Version),
+            FileName = AssetsDir ++ binary_to_list(?FILE_NAME(Author, Name, V)),
+            ok = file:delete(FileName),
+            NewReleases = lists:keydelete(Version, 2, M#module.releases),
+            case NewReleases of 
+                [] -> {ok, Others};
+                _ -> {ok, [M#module{releases = NewReleases} | Others]}
+            end            
+    end.
 
 % -----------------------------------------------------------------------------
 -spec store(state(), string(), binary()) -> {ok, state()} | {error, any()}.

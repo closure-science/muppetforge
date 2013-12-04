@@ -18,6 +18,14 @@ handle(Req, {module, <<"GET">>}) ->
     {ok, Req2} = cowboy_req:reply(Code, ?HEADERS, jiffy:encode(Response), Req),
     {ok, Req2, undefined};
 
+handle(Req, {release, <<"DELETE">>}) ->
+    {Author, _} = cowboy_req:binding(author, Req),
+    {ModuleName, _} = cowboy_req:binding(modulename, Req),
+    {Version, _} = cowboy_req:binding(version, Req),
+    ok = muppet_repository:delete(Author, ModuleName, versions:version(Version)),
+    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
+    {ok, Req2, undefined};
+
 handle(Req, {modules, <<"GET">>}) ->
     {Query, _} = cowboy_req:qs_val(<<"q">>, Req, <<"">>),
     Modules = muppet_repository:search(query_terms(Query)),
