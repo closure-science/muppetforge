@@ -54,7 +54,7 @@ find_release(Modules, Author, Name, Constraints) ->
     end.
 
 find_release(_Modules, [], Dict) ->
-    Dict;
+    {ok, Dict};
 find_release(Modules, [{FullName, VersionConstraints}|Others], Dict) ->
     Dict2 = case dict:is_key(FullName, Dict) of 
         false -> dict:store(FullName, sets:new(), Dict);
