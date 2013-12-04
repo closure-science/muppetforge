@@ -132,10 +132,18 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
       </div>
     </div>
     <div class="panel panel-default">
+      <div class="panel-heading"><code>/mf/api/{author}/{modulename}/{version}</code></div>
+      <div class="panel-body">
+        <dl class="dl-horizontal">
+          <dt>DELETE</dt><dd>Deletes a release from the forge. If it is the last remaining release of a module, the module is deleted too.</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="panel panel-default">
       <div class="panel-heading"><code>/mf/api/deploy</code></div>
       <div class="panel-body">
         <dl class="dl-horizontal">
-          <dt>POST</dt><dd>Deploy a Puppet module tarball into the Forge. The tarball must be given as the request body. No other parameters are required as metadata will be extracted directly from the tarball. Missing or invalid metadata will incur in an error.</dd>
+          <dt>POST</dt><dd>Deploys a Puppet module tarball into the Forge. The tarball must be given as the request body. No other parameters are required as metadata will be extracted directly from the tarball. Missing or invalid metadata will incur in an error.</dd>
         </dl>
       </div>
     </div>
