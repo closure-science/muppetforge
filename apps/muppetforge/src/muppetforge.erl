@@ -26,4 +26,4 @@ start_httpd() ->
 
 module_name(PossiblySuffixed) ->
     {match, [ModuleName]} = re:run(PossiblySuffixed, "(.*?)(?:\\.json)?$", [{capture, all_but_first, binary}]),
-    ModuleName.
+    {true, ModuleName}.
