@@ -1,17 +1,17 @@
 -module(muppet_mirror_agent).
 -behaviour(gen_server).
--export([init/1, handle_cast/2, handle_call/3, handle_info/2, code_change/3, terminate/2, proplists_to_blacklist/1, serializable_blacklist/1]).
+-export([init/1, handle_cast/2, handle_call/3, handle_info/2, code_change/3, terminate/2]).
 -export([start_link/0]).
 -export([info/0]).
 -export([store_upstream/1, fetch_upstream/0]).
--export([store_blacklist/1, fetch_blacklist/0]).
+-export([store_blacklist/1, fetch_blacklist/0, serializable_blacklist/1, proplists_to_blacklist/1]).
 -export([reset_errors/0, fetch_errors/0, serializable_errors/1]).
 
 -define(TICK_INTERVAL_MILLIS, 10000).
 -define(REFRESH_INTERVAL_MICROS, 60 * 60* 1000* 1000 * 1000).
 -record(state, { pids=sets:new(), retards =[], upstream = dict:new(), tbd = dict:new(), errors = dict:new() }).
+-type blacklist_entry() :: {binary() | null, binary() | null, binary() | null, binary() | null}.
 
--compile(export_all).
 % -----------------------------------------------------------------------------
 -spec start_link() -> {ok,pid()} | ignore | {error, {already_started, pid()} | term()}.
 % -----------------------------------------------------------------------------
@@ -21,29 +21,42 @@ start_link() ->
 
 
 % -----------------------------------------------------------------------------
+-spec store_upstream([binary()]) -> ok.
 % -----------------------------------------------------------------------------
 store_upstream(BaseUrls) ->
     gen_server:cast(?MODULE, {store_upstream, BaseUrls}).
+
+
 % -----------------------------------------------------------------------------
+-spec fetch_upstream() -> dict().
 % -----------------------------------------------------------------------------
 fetch_upstream() ->
     gen_server:call(?MODULE, fetch_upstream).
 
+
 % -----------------------------------------------------------------------------
+-spec store_blacklist([blacklist_entry()]) -> ok.
 % -----------------------------------------------------------------------------
 store_blacklist(Retards) ->
     gen_server:cast(?MODULE, {store_blacklist, Retards}).
+
+
 % -----------------------------------------------------------------------------
+-spec fetch_blacklist() -> [blacklist_entry()].
 % -----------------------------------------------------------------------------
 fetch_blacklist() ->
     gen_server:call(?MODULE, fetch_blacklist).
 
 
 % -----------------------------------------------------------------------------
+-spec reset_errors() -> ok.
 % -----------------------------------------------------------------------------
 reset_errors() ->
     gen_server:cast(?MODULE, reset_errors).
+
+
 % -----------------------------------------------------------------------------
+-spec fetch_errors() -> dict().
 % -----------------------------------------------------------------------------
 fetch_errors() ->
     gen_server:call(?MODULE, fetch_errors).
@@ -54,6 +67,7 @@ fetch_errors() ->
 % -----------------------------------------------------------------------------
 info() ->
     gen_server:call(?MODULE, info).
+
 
 
 init([]) ->
@@ -120,7 +134,7 @@ handle_info(tick, State) ->
     {noreply, State#state{ pids = sets:union(sets:from_list(Pids), State#state.pids)}};
 
 handle_info({upstream_metadata, At, UpstreamBaseUrl, VersionsFromUpstream}, State) ->
-    Unknown = lists:filter(fun({BaseUrl, {{Author, Module}, Version}}) ->
+    Unknown = lists:filter(fun({_BaseUrl, {{Author, Module}, Version}}) ->
         not muppet_repository:knows(Author, Module, Version)
     end, VersionsFromUpstream),
     NotBlacklisted = lists:filter(fun({BaseUrl, {{Author, Module}, Version}}) ->
@@ -132,7 +146,7 @@ handle_info({upstream_metadata, At, UpstreamBaseUrl, VersionsFromUpstream}, Stat
     NewUpstream = dict:store(UpstreamBaseUrl, At, State#state.upstream),
     {noreply, State#state{ upstream = NewUpstream, tbd=NewTbd }};
 
-handle_info({upstream_failed, _At, ErrorType, Reason}, State) ->
+handle_info({upstream_failed, _At, _ErrorType, _Reason}, State) ->
     {noreply, State};
 
 handle_info({tarball_done, _At, _BaseUrl, AuthorAndModule, Version}, State) ->
@@ -153,13 +167,13 @@ handle_info({'EXIT', Pid, _Reason}, State) ->
     end,
     {noreply, State#state{ pids = NewPids }};
 
-handle_info(Msg, State) ->
+handle_info(_Msg, State) ->
     {noreply, State}.
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-terminate(_Reason, State) ->
+terminate(_Reason, _State) ->
     dets:close(storage),
     ok.
 
@@ -172,7 +186,7 @@ dets_value(Name, Key, Default) ->
         _ -> Default
     end.
 
-allowed([], {BaseUrl, Author, Module, Version}) ->
+allowed([], {_BaseUrl, _Author, _Module, _Version}) ->
     true;    
 allowed([Bl|Cdr], El) ->
     case blacklisted(Bl, El) of 
@@ -181,12 +195,12 @@ allowed([Bl|Cdr], El) ->
     end.
 blacklisted({BlBaseUrl, BlAuthor, BlModule, BlVersion}, {BaseUrl, Author, Module, Version}) ->
     bl(BlBaseUrl, BaseUrl) andalso bl(BlAuthor, Author) andalso bl(BlModule, Module) andalso bl(BlVersion, Version).
-bl(null, El) -> true;        
+bl(null, _El) -> true;        
 bl(BlEl, El) -> BlEl =:= El.
 
 refresh_upstream(Parent, Now, UpstreamBaseUrl) ->
     try
-        {ok, {{_, 200, _}, Headers, Body}} = httpc:request(binary_to_list(UpstreamBaseUrl) ++ "/modules.json"),
+        {ok, {{_, 200, _}, _Headers, Body}} = httpc:request(binary_to_list(UpstreamBaseUrl) ++ "/modules.json"),
         DecodedModules = jiffy:decode(Body),
         VersionsFromUpstream = lists:flatmap(fun({M}) ->
             AuthorAndModule = muppet_driver:author_and_module(proplists:get_value(<<"full_name">>, M)),
@@ -214,7 +228,7 @@ upstream_to_be_refreshed(State) ->
     end, State#state.upstream),
     {Now, dict:fetch_keys(Expired) }.
 
-fetch_tarball_binary(BaseUrl, {Author, Module} = AuthorAndModule, Version) ->
+fetch_tarball_binary(BaseUrl, {Author, Module}, Version) ->
     FullName = binary_to_list(Author) ++ "/" ++ binary_to_list(Module),
     Url = binary_to_list(BaseUrl) ++ "/api/v1/releases.json?module="++FullName++"&version="++binary_to_list(Version),
     {ok, {{_, 200, _}, _, RelBody}} = httpc:request(Url),

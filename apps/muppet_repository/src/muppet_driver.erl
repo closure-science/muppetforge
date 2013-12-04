@@ -21,6 +21,7 @@
 new() ->
     [].
 
+
 % -----------------------------------------------------------------------------
 -spec new(string()) -> state().
 % -----------------------------------------------------------------------------
@@ -40,6 +41,7 @@ knows([Module|Rest], Author, ModuleName, Version) ->
     end;
 knows([], _Author, _ModuleName, _Version) ->
     false.
+
 
 % -----------------------------------------------------------------------------
 -spec find_release(state(), binary(), binary(), [versions:constraint_type()]) -> {ok, dict()} | {missing_dependency, FullName::binary()}.
@@ -99,7 +101,6 @@ store(Modules, AssetsDir, Tarball) ->
         Type:Reason ->  {error, {Type, Reason}}
     end.
 
-
 merge_into_modules(Module, Modules) ->
     case lists:keyfind(Module#module.full_name, 2, Modules) of
         false ->
@@ -112,6 +113,7 @@ merge_into_modules(Module, Modules) ->
                 NewModule = MatchedModule#module{ releases = NewReleases ++ PurgedOldModules},
                 lists:keyreplace(Module#module.full_name, 2, Modules, NewModule)
     end.
+
 
 % -----------------------------------------------------------------------------
 -spec search(state(), [binary()]) -> [module_type()].
@@ -127,6 +129,7 @@ search([Module|Rest], Terms, Matching) ->
         nomatch -> search(Rest, Terms, Matching);
         _ -> search(Rest, Terms, [Module|Matching])
     end.
+
 
 % -----------------------------------------------------------------------------
 -spec author_and_module(binary()) -> {Author::binary(), Module::binary()}.
@@ -175,7 +178,6 @@ find_metadata_file_in_tarball(File) ->
     end, {metadata_not_present, FileNamesInTar}, FileNamesInTar).
 
 
-
 % -----------------------------------------------------------------------------
 -spec serializable(module_type() | dict()) -> {[{atom(), any()}]}.
 % -----------------------------------------------------------------------------
@@ -204,6 +206,7 @@ serializable_release(Release) ->
         {file, Release#release.file}, 
         {dependencies, [[element(1, D), versions:to_binary(element(2, D))] || D <- Release#release.dependencies ]}
     ]}.
+
 
 % -----------------------------------------------------------------------------
 -spec info(state()) -> {Modules::integer(), Releases::integer()}.

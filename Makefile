@@ -18,7 +18,7 @@
 ERLFLAGS= -pa $(CURDIR)/.eunit -pa $(CURDIR)/apps/*/ebin -pa $(CURDIR)/deps/*/ebin
 
 DEPS_PLT=$(CURDIR)/.deps_plt
-DEPS=erts kernel stdlib ssh crypto public_key 
+DEPS=erts kernel stdlib ssh crypto public_key inets
 
 NODE=$(shell ls rel/ | grep node | sed -e 's/ //g' )
 # =============================================================================

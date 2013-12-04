@@ -104,9 +104,9 @@ compare(gte, LHS, RHS) ->
 compare(lte, LHS, RHS) ->
     compare(eq, LHS, RHS) orelse compare(lt, LHS, RHS).
 
-special_gt(LhSpecial, <<>>) ->
+special_gt(_LhSpecial, <<>>) ->
     false;
-special_gt(<<>>, RhSpecial) ->
+special_gt(<<>>, _RhSpecial) ->
     true;
 special_gt(LhSpecial, RhSpecial) ->
     LhSpecial > RhSpecial.
