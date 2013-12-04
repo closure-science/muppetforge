@@ -44,13 +44,13 @@ knows([], _Author, _ModuleName, _Version) ->
 
 
 % -----------------------------------------------------------------------------
--spec find_release(state(), binary(), binary(), [versions:constraint_type()]) -> {ok, dict()} | {missing_dependency, FullName::binary()}.
+-spec find_release(state(), binary(), binary(), [versions:constraint_type()]) -> {ok, dict()} | {not_found, FullName::binary()}.
 % -----------------------------------------------------------------------------
 find_release(Modules, Author, Name, Constraints) ->
-    try
-        find_release(Modules, [{?FULL_NAME(Author, Name), Constraints}], dict:new())
-    catch
-        throw:{missing_dependency, _FullName} = R -> R
+    FullName = ?FULL_NAME(Author, Name),
+    case lists:keyfind(FullName, 2, Modules) of
+        false -> {not_found, FullName};
+        _ -> {ok, find_release(Modules, [{?FULL_NAME(Author, Name), Constraints}], dict:new())}
     end.
 
 find_release(_Modules, [], Dict) ->
@@ -60,19 +60,24 @@ find_release(Modules, [{FullName, VersionConstraints}|Others], Dict) ->
         false -> dict:store(FullName, sets:new(), Dict);
         _ -> Dict
     end,
-    Module = case find(Modules, FullName) of 
-        {true, M} -> M;
-        {false, FullName} -> throw({missing_dependency, FullName})
-    end,
-    ViableReleases = sets:from_list(lists:filter(fun(R) -> 
-        versions:matches(VersionConstraints, R#release.version)
-    end, Module#module.releases)),
-    NewSet = sets:union(ViableReleases, dict:fetch(FullName, Dict2)),
-    Dict3 = dict:store(FullName, NewSet, Dict2),
-    NewDependencies = sets:from_list(lists:append([V#release.dependencies || V <- sets:to_list(ViableReleases)])),
-    NewQueue = sets:to_list(sets:union(NewDependencies,sets:from_list(Others))),
-    find_release(Modules, NewQueue, Dict3).
+    case find(Modules, FullName) of 
+        {false, FullName} -> 
+            find_release(Modules, Others, Dict2);
+        {true, Module} -> 
+            ViableReleases = sets:from_list(lists:filter(fun(R) -> 
+                versions:matches(VersionConstraints, R#release.version)
+            end, Module#module.releases)),
+            NewSet = sets:union(ViableReleases, dict:fetch(FullName, Dict2)),
+            Dict3 = dict:store(FullName, NewSet, Dict2),
+            NewDependencies = sets:from_list(lists:append([V#release.dependencies || V <- sets:to_list(ViableReleases)])),
+            NewQueue = sets:to_list(sets:union(NewDependencies,sets:from_list(Others))),
+            find_release(Modules, NewQueue, Dict3)
+    end.
 
+
+placeholder_module(FullName) ->
+    {Author, Module} = author_and_module(FullName),
+    #module{ author=Author, name=Module, full_name=FullName }.
 
 % -----------------------------------------------------------------------------
 -spec find(state(), binary()) -> {true, module_type()} | {false, FullName::binary()}.

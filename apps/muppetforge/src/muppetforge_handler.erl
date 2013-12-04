@@ -40,7 +40,7 @@ handle(Req, {releases, <<"GET">>}) ->
     VersionConstraints = versions:constraints(VersionConstraintsBin),
     {Code, Response} = case muppet_repository:find_release({Author, Module}, VersionConstraints) of
         {ok, Dict} ->  {200, muppet_driver:serializable(Dict)};
-        {missing_dependency, _} = Error ->{ 500, {[Error]} }
+        {not_found, FullName} -> { 410, {[{error, <<  <<"Module ">>/binary, FullName/binary, <<" not found">>/binary >> }]} }
     end,
     {ok, Req2} = cowboy_req:reply(Code, ?HEADERS, jiffy:encode(Response), Req),
     {ok, Req2, undefined};
