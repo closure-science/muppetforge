@@ -9,7 +9,7 @@
 
 -define(TICK_INTERVAL_MILLIS, 10000).
 -define(REFRESH_INTERVAL_MICROS, 60 * 60* 1000* 1000 * 1000).
--record(state, { pids=[], retards =[], upstream = dict:new(), tbd = dict:new(), errors = dict:new() }).
+-record(state, { pids=sets:new(), retards =[], upstream = dict:new(), tbd = dict:new(), errors = dict:new() }).
 
 -compile(export_all).
 % -----------------------------------------------------------------------------
@@ -117,7 +117,7 @@ handle_info(tick, State) ->
                     [Pid]
             end
     end,
-    {noreply, State#state{ pids = lists:append(Pids, State#state.pids)}};
+    {noreply, State#state{ pids = sets:union(sets:from_list(Pids), State#state.pids)}};
 
 handle_info({upstream_metadata, At, UpstreamBaseUrl, VersionsFromUpstream}, State) ->
     Unknown = lists:filter(fun({BaseUrl, {{Author, Module}, Version}}) ->
@@ -145,11 +145,11 @@ handle_info({tarball_failed, At, BaseUrl, AuthorAndModule, Version, ErrorType, R
     {noreply, State#state{ tbd = NewTbd, errors = NewErrors}};
 
 handle_info({'EXIT', Pid, _Reason}, State) ->
-    NewPids = case lists:element(Pid, State#state.pids) of
+    NewPids = case sets:is_element(Pid, State#state.pids) of
         false -> State#state.pids;
         true ->
             self() ! tick, 
-            lists:delete(Pid, State#state.pids)
+            sets:del_element(Pid, State#state.pids)
     end,
     {noreply, State#state{ pids = NewPids }};
 
