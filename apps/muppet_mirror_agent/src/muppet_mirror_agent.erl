@@ -274,10 +274,14 @@ serializable_error({{BaseUrl, {Author, Module}, Version}, {Now, {Type, Error, St
         {at, timer:now_diff(Now, {0,0,0}) div 1000},
         {error_type, Type},
         {error, list_to_binary(lists:flatten(io_lib:format("~p", [Error]))) },
-        {stack_trace, lists:map(fun frame/1, StackTrace) }
+        {stack_trace, lists:map(fun stack_item/1, StackTrace) }
     ]}.
 
-frame({Module, FunctionName,Arity, [{file, FileName}, {line, LineNo}]}) ->
+stack_item({Module, FunctionName, ArityOrArgs, [{file, FileName}, {line, LineNo}]}) ->
+    Arity = case is_list(ArityOrArgs) of
+        true -> length(ArityOrArgs);
+        false -> ArityOrArgs
+    end,
     {[
         {module, Module},
         {fn, FunctionName},
