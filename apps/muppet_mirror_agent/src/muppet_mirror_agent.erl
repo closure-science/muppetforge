@@ -231,7 +231,7 @@ upstream_to_be_refreshed(State) ->
 
 fetch_tarball_binary(BaseUrl, {Author, Module}, Version) ->
     FullName = binary_to_list(Author) ++ "/" ++ binary_to_list(Module),
-    Url = binary_to_list(BaseUrl) ++ "/api/v1/releases.json?module="++FullName++"&version="++binary_to_list(Version),
+    Url = binary_to_list(BaseUrl) ++ "/api/v1/releases.json?module="++FullName++"&version="++binary_to_list(versions:to_binary(Version)),
     {ok, {{_, 200, _}, _, RelBody}} = httpc:request(Url),
     {DecodedBody} = jiffy:decode(RelBody),
     Release = case proplists:get_value(list_to_binary(FullName), DecodedBody) of
@@ -270,22 +270,20 @@ serializable_error({{BaseUrl, {Author, Module}, Version}, {Now, {Type, Error, St
         {base_url, BaseUrl},
         {author, Author}, 
         {module, Module},
-        {version, Version},
+        {version, versions:to_binary(Version)},
         {at, timer:now_diff(Now, {0,0,0}) div 1000},
         {error_type, Type},
         {error, list_to_binary(lists:flatten(io_lib:format("~p", [Error]))) },
         {stack_trace, lists:map(fun stack_item/1, StackTrace) }
     ]}.
 
-stack_item({Module, FunctionName, ArityOrArgs, [{file, FileName}, {line, LineNo}]}) ->
-    Arity = case is_list(ArityOrArgs) of
-        true -> length(ArityOrArgs);
-        false -> ArityOrArgs
-    end,
+stack_item({Module, FunctionName, Args, FileNameAndLine}) when is_list(Args) ->
+    stack_item({Module, FunctionName, length(Args), FileNameAndLine});
+stack_item({Module, FunctionName, Arity, FileNameAndLine}) ->
     {[
         {module, Module},
         {fn, FunctionName},
         {arity,  Arity},
-        {file, list_to_binary(FileName)},
-        {line, LineNo }
+        {file, list_to_binary(proplists:get_value(file, FileNameAndLine, "builtin"))},
+        {line, proplists:get_value(line, FileNameAndLine, 0) }
     ]}.
