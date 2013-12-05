@@ -115,8 +115,8 @@ handle_call(_Req, _From, State) ->
 
 handle_info(tick, State) ->
     ThisPid = self(),
-    {Now, UpstreamBaseUrls} = upstream_to_be_refreshed(State),
-    Pids = case UpstreamBaseUrls of
+    {Now, ExpiredUpstreamBaseUrls} = upstream_to_be_refreshed(State),
+    Pids = case ExpiredUpstreamBaseUrls of
         [UpstreamBaseUrl| _] -> 
             Pid = spawn_link(fun() -> refresh_upstream(ThisPid, Now, UpstreamBaseUrl) end),
             [Pid];
@@ -146,8 +146,9 @@ handle_info({upstream_metadata, At, UpstreamBaseUrl, VersionsFromUpstream}, Stat
     NewUpstream = dict:store(UpstreamBaseUrl, At, State#state.upstream),
     {noreply, State#state{ upstream = NewUpstream, tbd=NewTbd }};
 
-handle_info({upstream_failed, _At, _ErrorType, _Reason}, State) ->
-    {noreply, State};
+handle_info({upstream_failed, At, UpstreamBaseUrl, _ErrorType, _Reason}, State) ->
+    NewUpstream = dict:store(UpstreamBaseUrl, At, State#state.upstream),
+    {noreply, State#state{ upstream = NewUpstream }};
 
 handle_info({tarball_done, _At, _BaseUrl, AuthorAndModule, Version}, State) ->
     NewTbd = dict:erase({AuthorAndModule, Version}, State#state.tbd),
@@ -162,7 +163,7 @@ handle_info({'EXIT', Pid, _Reason}, State) ->
     NewPids = case sets:is_element(Pid, State#state.pids) of
         false -> State#state.pids;
         true ->
-            self() ! tick, 
+            self() ! tick,
             sets:del_element(Pid, State#state.pids)
     end,
     {noreply, State#state{ pids = NewPids }};
@@ -205,11 +206,11 @@ refresh_upstream(Parent, Now, UpstreamBaseUrl) ->
         VersionsFromUpstream = lists:flatmap(fun({M}) ->
             AuthorAndModule = muppet_driver:author_and_module(proplists:get_value(<<"full_name">>, M)),
             Releases = proplists:get_value(<<"releases">>, M),
-            [{UpstreamBaseUrl, {AuthorAndModule, proplists:get_value(<<"version">>, R) }} || {R} <- Releases]
+            [{UpstreamBaseUrl, {AuthorAndModule, versions:version(proplists:get_value(<<"version">>, R)) }} || {R} <- Releases]
         end, DecodedModules),
         Parent ! {upstream_metadata, Now, UpstreamBaseUrl, VersionsFromUpstream }
     catch 
-        T:R -> Parent ! {upstream_failed, Now, T, R}
+        T:R -> Parent ! {upstream_failed, Now, UpstreamBaseUrl, T, R}
     end.
 
 fetch_and_store_tarball(Parent, Now, BaseUrl, AuthorAndModule, Version) ->
