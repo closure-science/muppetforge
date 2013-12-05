@@ -18,7 +18,7 @@
 ERLFLAGS= -pa $(CURDIR)/.eunit -pa $(CURDIR)/apps/*/ebin -pa $(CURDIR)/deps/*/ebin
 
 DEPS_PLT=$(CURDIR)/.deps_plt
-DEPS=erts kernel stdlib ssh crypto public_key inets
+DEPS=erts kernel stdlib ssh crypto public_key inets eldap
 
 NODE=$(shell ls rel/ | grep node | sed -e 's/ //g' )
 # =============================================================================
@@ -107,7 +107,7 @@ release:
 start:
 	rel/$(NODE)/bin/$(NODE) start
 console:
-	rel/${NODE}/bin/${NODE} console
+	rel/${NODE}/bin/${NODE} console ${ARGS}
 
 puppetmodule:
 	puppet module build muppetforge-integration

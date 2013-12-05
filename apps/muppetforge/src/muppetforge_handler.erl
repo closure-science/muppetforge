@@ -4,9 +4,20 @@
 -define(HEADERS, [{<<"content-type">>, <<"application/json">>}]).
 
 
+
 init({tcp, http}, Req, [Atom]) ->
-    {Method, _} = cowboy_req:method(Req),
-    {ok, Req, {Atom, Method}}.
+    Msg = case muppet_auth:is_authorized(Req) of
+        false -> should_auth;
+        true ->
+            {Method, _} = cowboy_req:method(Req),
+            {Atom, Method}        
+    end,
+    {ok, Req, Msg}.
+
+handle(Req, should_auth) ->
+    H = muppet_auth:challenge(Req),
+    {ok, Req2} = cowboy_req:reply(401, H ++ ?HEADERS, jiffy:encode(auth_required), Req),
+    {ok, Req2, undefined};
 
 handle(Req, {module, <<"GET">>}) ->
     {Author, _} = cowboy_req:binding(author, Req),

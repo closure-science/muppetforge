@@ -1,0 +1,9 @@
+{application, muppet_auth, [
+    {description, "Muppet authentication application."},
+    {vsn, "1"},
+    {registered, [muppet_auth_application, muppet_auth_supervisor, muppet_auth]},
+    {applications, [kernel, stdlib, ssl]},
+    {modules, [muppet_auth_always, muppet_auth_ldap, muppet_auth, muppet_auth_application, muppet_auth_supervisor ]},
+    {mod, { muppet_auth_application, []}},
+    {env, []}
+]}.

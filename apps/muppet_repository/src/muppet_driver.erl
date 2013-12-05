@@ -75,10 +75,6 @@ find_release(Modules, [{FullName, VersionConstraints}|Others], Dict) ->
     end.
 
 
-placeholder_module(FullName) ->
-    {Author, Module} = author_and_module(FullName),
-    #module{ author=Author, name=Module, full_name=FullName }.
-
 % -----------------------------------------------------------------------------
 -spec find(state(), binary()) -> {true, module_type()} | {false, FullName::binary()}.
 % -----------------------------------------------------------------------------
@@ -92,7 +88,7 @@ find([], FullName) ->
 
 
 % -----------------------------------------------------------------------------
--spec delete(state(), string(), binary()) -> {ok, state()} | {error, state()}.
+-spec delete(state(), string(), {binary(), binary(), versions:version_type()}) -> {ok, state()} | {error, state()}.
 % -----------------------------------------------------------------------------
 delete(Modules, AssetsDir, {Author, Name, Version}) ->
     {Matching, Others} = lists:partition(fun(M) -> 
