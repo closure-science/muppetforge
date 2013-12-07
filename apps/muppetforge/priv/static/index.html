@@ -238,8 +238,12 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
         <div class="panel-body">
             <form class="form-inline" onsubmit="mf.add_upstream(); return false;">
               <div class="form-group">
-                <label class="sr-only" for="upstream-field">Upstream Url</label>
-                <input type="url" class="form-control" id="upstream-field" placeholder="New Upstream Url..." required>
+                <label class="sr-only" for="upstream-base-url-field">Upstream Url</label>
+                <input type="url" class="form-control" id="upstream-base-url-field" placeholder="New Upstream Url..." required>
+              </div>
+              <div class="form-group">
+                <label for="upstream-observe-field">Observe</label>
+                <input type="checkbox" class="form-control" id="upstream-observe-field">
               </div>
               <button id="add_upstream_button" type="submit" class="btn btn-default">Add</button>
             </form>
@@ -253,7 +257,7 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
     {{#each this}}
     <div class="panel panel-primary">
         <div class="panel-body" style="line-height: 24px">
-            {{this}}
+            {{base_url}} <span class="text-muted">Last updated: {{ts_as_date_string_or_never time}}</span> {{#if observe }} <span class="label label-primary pull-right">Observing</span> {{/if}}
             <button type="button" class="btn btn-default btn-sm pull-right" onclick="mf.del_upstream({{@index}})">
               <span class="glyphicon glyphicon-remove"></span>
             </button>
@@ -344,6 +348,9 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
 <script src="js/bootstrap.min.js"></script>
 <script>
 
+Handlebars.registerHelper('ts_as_date_string_or_never', function(timestamp) {
+    return timestamp !== 0 ? new Date(timestamp).toISOString() : 'never';
+});    
 Handlebars.registerHelper('ts_as_date_string', function(timestamp) {
     return new Date(timestamp).toISOString();
 });    
@@ -461,14 +468,23 @@ muppet_forge.prototype.del_blacklist = function(index){
 
 muppet_forge.prototype.add_upstream = function(){
     var self = this;
-    this.data.upstream.push($('#upstream-field').val());
-    console.log("trying to push ", this.data.upstream);
+    var newUpstream = {
+      base_url : $('#upstream-base-url-field').val(),
+      observe : $('#upstream-upstream-observe-field').val(),
+      time: 0
+    };
+    this.data.upstream.push(newUpstream);
+
+    var toBeSent = this.data.upstream.map(function(e){
+      return {base_url: e.base_url, observe: e.observe};
+    });
+
     $.ajax({
         type: "PUT",
         dataType: 'json',
         url: 'mf/api/upstream',
         contentType: "application/json",
-        data: JSON.stringify(this.data.upstream),
+        data: JSON.stringify(toBeSent),
         success: function(){
             self.result(self.templates.upstream(self.data.upstream));
         }

@@ -2,15 +2,15 @@
 
 -behaviour(supervisor).
 -export([init/1]).
+-define(MAX_RESTART, 5).
+-define(MAX_TIME, 100).
+
 
 init([]) ->
-    MaxRestart = 5,
-    MaxTime = 100,
-    StartFun = {muppet_repository, start_link, []},
-    Modules = [muppet_repository],
     {ok, {
-        {one_for_one, MaxRestart, MaxTime},
+        { one_for_one, ?MAX_RESTART, ?MAX_TIME },
         [
-            {muppet_repository, StartFun, permanent, brutal_kill, worker, Modules}
+            {muppet_repository_observable, {muppet_repository_observable, start_link, []}, permanent, brutal_kill, worker, [muppet_repository_observable]},
+            {muppet_repository, {muppet_repository, start_link, []}, permanent, brutal_kill, worker, [muppet_repository]}
         ]
     }}.

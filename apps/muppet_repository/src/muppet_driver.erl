@@ -108,7 +108,7 @@ delete(Modules, AssetsDir, {Author, Name, Version}) ->
     end.
 
 % -----------------------------------------------------------------------------
--spec store(state(), string(), binary()) -> {ok, state()} | {error, any()}.
+-spec store(state(), string(), binary()) -> {ok, {Author::binary(), Module::binary(), Version::versions:version_type(), FileName::binary()}, state()} | {error, any()}.
 % -----------------------------------------------------------------------------
 store(Modules, AssetsDir, Tarball) ->
     try
@@ -117,7 +117,7 @@ store(Modules, AssetsDir, Tarball) ->
         AbsFileName = AssetsDir ++ binary_to_list(Release#release.file),
         ok = file:write_file(AbsFileName, Tarball),
         NewModules = merge_into_modules(Module, Modules),
-        {ok, NewModules}
+        {ok, {Module#module.author, Module#module.name,  Release#release.version, Release#release.file}, NewModules}
     catch 
         Type:Reason ->  {error, {Type, Reason}}
     end.

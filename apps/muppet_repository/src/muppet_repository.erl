@@ -37,7 +37,7 @@ delete(Author, Name, Version) ->
     gen_server:call(?MODULE, {delete_release, Author, Name, Version}).
 
 % -----------------------------------------------------------------------------
--spec store( binary() ) -> ok | {error, {Error::any(), Reason::any()}}.
+-spec store( binary() ) -> {ok, {Author::binary(), Module::binary(), Version::versions:version_type(), FilePath::binary()}} | {error, {Error::any(), Reason::any()}}.
 % -----------------------------------------------------------------------------
 store(Tarball) ->
     gen_server:call(?MODULE, {store_module, Tarball}).
@@ -73,15 +73,14 @@ init([]) ->
     State = muppet_driver:new(assets_dir()),
     {ok, State}.
 
-handle_cast({store_module, Tarball}, State) ->
-    NewState = case muppet_driver:store(State, assets_dir(), Tarball) of
-        {ok, S} -> S;
-        _ -> State
-    end,
-    {noreply, NewState}.
-handle_call({store_module, Tarball}, _From, State) ->
-    {Response, NewState} = case muppet_driver:store(State, assets_dir(), Tarball) of
-        {ok, _State} = R -> R;
+handle_cast(_Msg, State) ->
+    {noreply, State}.
+
+handle_call({store_module, TarballBinary}, _From, State) ->
+    {Response, NewState} = case muppet_driver:store(State, assets_dir(), TarballBinary) of
+        {ok, ReleaseCoords, State2} -> 
+            muppet_repository_observable:notify_all({new_release, ReleaseCoords}),
+            {{ok, ReleaseCoords}, State2};
         E -> {E, State}
     end,
     {reply, Response, NewState};    

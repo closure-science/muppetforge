@@ -58,8 +58,11 @@ handle(Req, {releases, <<"GET">>}) ->
 
 handle(Req, {deploy, <<"POST">>}) ->
     {ok, TarballBinary, _} = cowboy_req:body(Req),
-    muppet_repository:store(TarballBinary),
-    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
+    {Code, Resp} = case muppet_repository:store(TarballBinary) of
+        {ok, _ReleaseCoords} ->  {200, ok};
+        {error, Error} -> {500, lists:flatten(io_lib:format("~p", [Error]))}
+    end,
+    {ok, Req2} = cowboy_req:reply(Code, ?HEADERS, jiffy:encode(Resp), Req),
     {ok, Req2, undefined};
 
 handle(Req, {blacklist, <<"GET">>}) ->
@@ -90,15 +93,22 @@ handle(Req, {errors, <<"DELETE">>}) ->
 
 
 handle(Req, {upstream, <<"GET">>}) ->
-    Upstream = muppet_mirror_agent:fetch_upstream(),
-    Serializable = dict:fetch_keys(Upstream),
+    UpstreamDict = muppet_mirror_agent:fetch_upstream(),
+    Serializable = lists:map(fun({BaseUrl, {Observer, Time}}) ->
+        TimeMillis = timer:now_diff(Time, {0,0,0}) div 1000,
+        {[ {base_url, BaseUrl}, {observe, Observer}, {time, TimeMillis} ]}
+    end, dict:to_list(UpstreamDict)),
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(Serializable), Req),
     {ok, Req2, undefined};
 
 handle(Req, {upstream, <<"PUT">>}) ->
-    {ok, UpstreamBinary, _} = cowboy_req:body(Req),
-    Upstream = jiffy:decode(UpstreamBinary),
-    ok = muppet_mirror_agent:store_upstream(Upstream),
+    {ok, Body, _} = cowboy_req:body(Req),
+    UpstreamInfos = lists:map(fun({UpstreamInfo}) -> 
+        Observe = proplists:get_value(<<"observe">>, UpstreamInfo, false),
+        {_, UpstreamUrl} = proplists:lookup(<<"base_url">>, UpstreamInfo),
+        {UpstreamUrl, Observe}
+    end, jiffy:decode(Body)),
+    ok = muppet_mirror_agent:store_upstream(UpstreamInfos),
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
     {ok, Req2, undefined};
 

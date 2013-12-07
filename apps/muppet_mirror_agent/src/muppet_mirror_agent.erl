@@ -21,10 +21,10 @@ start_link() ->
 
 
 % -----------------------------------------------------------------------------
--spec store_upstream([binary()]) -> ok.
+-spec store_upstream([{binary(), boolean()}]) -> ok.
 % -----------------------------------------------------------------------------
-store_upstream(BaseUrls) ->
-    gen_server:cast(?MODULE, {store_upstream, BaseUrls}).
+store_upstream(UpstreamDefinitions) ->
+    gen_server:cast(?MODULE, {store_upstream, UpstreamDefinitions}).
 
 
 % -----------------------------------------------------------------------------
@@ -75,14 +75,14 @@ init([]) ->
     filelib:ensure_dir(StorageFileName),
     {ok, storage} = dets:open_file(storage, [{file,  StorageFileName}]),
     Retards = dets_value(storage, retards, []),
-    Upstream = dets_value(storage, upstream, []),
+    UpstreamDefinitions = dets_value(storage, upstream, []),
     process_flag(trap_exit, true),
     self() ! tick,
-    {ok, #state{upstream = upstream_from_base_urls(Upstream), retards = Retards}}.
+    {ok, #state{upstream = upstream_from_definitions(UpstreamDefinitions), retards = Retards}}.
 
-handle_cast({store_upstream, BaseUrls}, State) ->
-    NewUpstream = upstream_from_base_urls(BaseUrls),
-    ok = dets:insert(storage, {upstream, BaseUrls}),
+handle_cast({store_upstream, UpstreamDefinitions}, State) ->
+    NewUpstream = upstream_from_definitions(UpstreamDefinitions),
+    ok = dets:insert(storage, {upstream, UpstreamDefinitions}),
     ok = dets:sync(storage),    
     {noreply, State#state{ upstream = NewUpstream, tbd = dict:new(), errors = dict:new() }};
 handle_cast({store_blacklist, Retards}, State) ->
@@ -115,10 +115,10 @@ handle_call(_Req, _From, State) ->
 
 handle_info(tick, State) ->
     ThisPid = self(),
-    {Now, ExpiredUpstreamBaseUrls} = upstream_to_be_refreshed(State),
-    Pids = case ExpiredUpstreamBaseUrls of
-        [UpstreamBaseUrl| _] -> 
-            Pid = spawn_link(fun() -> refresh_upstream(ThisPid, Now, UpstreamBaseUrl) end),
+    {Now, ExpiredUpstream} = upstream_to_be_refreshed(State),
+    Pids = case ExpiredUpstream of
+        [{UpstreamBaseUrl, Observe}| _] -> 
+            Pid = spawn_link(fun() -> refresh_upstream(ThisPid, Now, UpstreamBaseUrl, Observe) end),
             [Pid];
         [] -> 
             case dict:fetch_keys(State#state.tbd) of
@@ -133,7 +133,7 @@ handle_info(tick, State) ->
     end,
     {noreply, State#state{ pids = sets:union(sets:from_list(Pids), State#state.pids)}};
 
-handle_info({upstream_metadata, At, UpstreamBaseUrl, VersionsFromUpstream}, State) ->
+handle_info({upstream_metadata, Observe, At, UpstreamBaseUrl, VersionsFromUpstream}, State) ->
     Unknown = lists:filter(fun({_BaseUrl, {{Author, Module}, Version}}) ->
         not muppet_repository:knows(Author, Module, Version)
     end, VersionsFromUpstream),
@@ -143,10 +143,10 @@ handle_info({upstream_metadata, At, UpstreamBaseUrl, VersionsFromUpstream}, Stat
     NewTbd = lists:foldl(fun({BaseUrl, Coords}, Accum) ->
         dict:store(Coords, BaseUrl, Accum)
     end, State#state.tbd, NotBlacklisted),
-    NewUpstream = dict:store(UpstreamBaseUrl, At, State#state.upstream),
+    NewUpstream = dict:store(UpstreamBaseUrl, {Observe, At}, State#state.upstream),
     {noreply, State#state{ upstream = NewUpstream, tbd=NewTbd }};
 
-handle_info({upstream_failed, At, UpstreamBaseUrl, _ErrorType, _Reason}, State) ->
+handle_info({upstream_failed, Observe, At, UpstreamBaseUrl, _ErrorType, _Reason}, State) ->
     NewUpstream = dict:store(UpstreamBaseUrl, At, State#state.upstream),
     {noreply, State#state{ upstream = NewUpstream }};
 
@@ -178,8 +178,8 @@ terminate(_Reason, _State) ->
     dets:close(storage),
     ok.
 
-upstream_from_base_urls(BaseUrls) ->
-    dict:from_list([{BaseUrl, {0,0,0}} || BaseUrl <- BaseUrls]).
+upstream_from_definitions(UpstreamDefinitions) ->
+    dict:from_list([{BaseUrl, {Observe, {0,0,0}}} || {BaseUrl, Observe} <- UpstreamDefinitions]).
 
 dets_value(Name, Key, Default) ->
     case dets:lookup(Name, Key) of
@@ -199,7 +199,7 @@ blacklisted({BlBaseUrl, BlAuthor, BlModule, BlVersion}, {BaseUrl, Author, Module
 bl(null, _El) -> true;        
 bl(BlEl, El) -> BlEl =:= El.
 
-refresh_upstream(Parent, Now, UpstreamBaseUrl) ->
+refresh_upstream(Parent, Now, UpstreamBaseUrl, Observe) ->
     try
         {ok, {{_, 200, _}, _Headers, Body}} = httpc:request(binary_to_list(UpstreamBaseUrl) ++ "/modules.json"),
         DecodedModules = jiffy:decode(Body),
@@ -208,15 +208,15 @@ refresh_upstream(Parent, Now, UpstreamBaseUrl) ->
             Releases = proplists:get_value(<<"releases">>, M),
             [{UpstreamBaseUrl, {AuthorAndModule, versions:version(proplists:get_value(<<"version">>, R)) }} || {R} <- Releases]
         end, DecodedModules),
-        Parent ! {upstream_metadata, Now, UpstreamBaseUrl, VersionsFromUpstream }
+        Parent ! {upstream_metadata, Observe, Now, UpstreamBaseUrl, VersionsFromUpstream }
     catch 
-        T:R -> Parent ! {upstream_failed, Now, UpstreamBaseUrl, T, R}
+        T:R -> Parent ! {upstream_failed, Observe, Now, UpstreamBaseUrl, T, R}
     end.
 
 fetch_and_store_tarball(Parent, Now, BaseUrl, AuthorAndModule, Version) ->
     try
         TarballBinary = fetch_tarball_binary(BaseUrl, AuthorAndModule, Version),
-        ok = muppet_repository:store(TarballBinary),
+        {ok, _NewFile} = muppet_repository:store(TarballBinary),
         Parent ! {tarball_done, Now, BaseUrl, AuthorAndModule, Version}
     catch
         T:R -> Parent ! {tarball_failed, Now, BaseUrl, AuthorAndModule, Version, T, R, erlang:get_stacktrace() }
@@ -224,10 +224,12 @@ fetch_and_store_tarball(Parent, Now, BaseUrl, AuthorAndModule, Version) ->
 
 upstream_to_be_refreshed(State) ->
     Now = now(),
-    Expired = dict:filter(fun(_UpstreamUrl, RefreshedAt) ->
+    Expired = dict:filter(fun(_UpstreamUrl, {_Observe, RefreshedAt}) ->
         timer:now_diff(Now, RefreshedAt) > ?REFRESH_INTERVAL_MICROS
     end, State#state.upstream),
-    {Now, dict:fetch_keys(Expired) }.
+    {Now, lists:map(fun({Url, {Observe, _At}}) -> 
+        {Url, Observe} 
+    end, dict:to_list(Expired))}.
 
 fetch_tarball_binary(BaseUrl, {Author, Module}, Version) ->
     FullName = binary_to_list(Author) ++ "/" ++ binary_to_list(Module),
