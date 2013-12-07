@@ -216,7 +216,7 @@ refresh_upstream(Parent, Now, UpstreamBaseUrl, Observe) ->
 fetch_and_store_tarball(Parent, Now, BaseUrl, AuthorAndModule, Version) ->
     try
         TarballBinary = fetch_tarball_binary(BaseUrl, AuthorAndModule, Version),
-        {ok, _NewFile} = muppet_repository:store(TarballBinary),
+        {ok, _ReleaseCoords} = muppet_repository:store(TarballBinary),
         Parent ! {tarball_done, Now, BaseUrl, AuthorAndModule, Version}
     catch
         T:R -> Parent ! {tarball_failed, Now, BaseUrl, AuthorAndModule, Version, T, R, erlang:get_stacktrace() }
