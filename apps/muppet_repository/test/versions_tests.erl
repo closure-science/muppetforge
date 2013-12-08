@@ -17,64 +17,72 @@ can_parse_spaces_test() -> [{gt, {1,2,3, <<>>}}] = versions:constraints("  >  1.
 
 
 can_compare_with_lt_test() -> 
-    true = versions:compare(lt, {1,0,0, <<>>}, {2,0,0, <<>>}),
-    false = versions:compare(lt, {3,0,0, <<>>}, {2,1,0, <<>>}),
-    false = versions:compare(lt, {2,0,0, <<>>}, {1,0,0, <<>>}),
-    false = versions:compare(lt, {2,0,0, <<>>}, {2,0,0, <<>>}),
-    true = versions:compare(lt, {0,1,0, <<>>}, {0,2,0, <<>>}),
-    false = versions:compare(lt, {0,2,0, <<>>}, {0,1,0, <<>>}),
-    false = versions:compare(lt, {0,2,0, <<>>}, {0,2,0, <<>>}),
-    true = versions:compare(lt, {0,0,1, <<>>}, {0,0,2, <<>>}),
-    false = versions:compare(lt, {0,0,2, <<>>}, {0,0,1, <<>>}),
-    false = versions:compare(lt, {0,0,2, <<>>}, {0,0,2, <<>>}).
+    [
+        ?_assertMatch(true, versions:compare(lt, {1,0,0, <<>>}, {2,0,0, <<>>})),
+        ?_assertMatch(false, versions:compare(lt, {3,0,0, <<>>}, {2,1,0, <<>>})),
+        ?_assertMatch(false, versions:compare(lt, {2,0,0, <<>>}, {1,0,0, <<>>})),
+        ?_assertMatch(false, versions:compare(lt, {2,0,0, <<>>}, {2,0,0, <<>>})),
+        ?_assertMatch(true, versions:compare(lt, {0,1,0, <<>>}, {0,2,0, <<>>})),
+        ?_assertMatch(false, versions:compare(lt, {0,2,0, <<>>}, {0,1,0, <<>>})),
+        ?_assertMatch(false, versions:compare(lt, {0,2,0, <<>>}, {0,2,0, <<>>})),
+        ?_assertMatch(true, versions:compare(lt, {0,0,1, <<>>}, {0,0,2, <<>>})),
+        ?_assertMatch(false, versions:compare(lt, {0,0,2, <<>>}, {0,0,1, <<>>})),
+        ?_assertMatch(false, versions:compare(lt, {0,0,2, <<>>}, {0,0,2, <<>>}))
+    ].
 
 can_compare_with_lte_test() -> 
-    true = versions:compare(lte, {1,0,0, <<>>}, {2,0,0, <<>>}),
-    false = versions:compare(lte, {2,0,0, <<>>}, {1,0,0, <<>>}),
-    true = versions:compare(lte, {2,0,0, <<>>}, {2,0,0, <<>>}),
-    true = versions:compare(lte, {0,1,0, <<>>}, {0,2,0, <<>>}),
-    false = versions:compare(lte, {0,2,0, <<>>}, {0,1,0, <<>>}),
-    true = versions:compare(lte, {0,2,0, <<>>}, {0,2,0, <<>>}),
-    true = versions:compare(lte, {0,0,1, <<>>}, {0,0,2, <<>>}),
-    false = versions:compare(lte, {0,0,2, <<>>}, {0,0,1, <<>>}),
-    true = versions:compare(lte, {0,0,2, <<>>}, {0,0,2, <<>>}).
+    [
+        ?_assertMatch(true, versions:compare(lte, {1,0,0, <<>>}, {2,0,0, <<>>})),
+        ?_assertMatch(false, versions:compare(lte, {2,0,0, <<>>}, {1,0,0, <<>>})),
+        ?_assertMatch(true, versions:compare(lte, {2,0,0, <<>>}, {2,0,0, <<>>})),
+        ?_assertMatch(true, versions:compare(lte, {0,1,0, <<>>}, {0,2,0, <<>>})),
+        ?_assertMatch(false, versions:compare(lte, {0,2,0, <<>>}, {0,1,0, <<>>})),
+        ?_assertMatch(true, versions:compare(lte, {0,2,0, <<>>}, {0,2,0, <<>>})),
+        ?_assertMatch(true, versions:compare(lte, {0,0,1, <<>>}, {0,0,2, <<>>})),
+        ?_assertMatch(false, versions:compare(lte, {0,0,2, <<>>}, {0,0,1, <<>>})),
+        ?_assertMatch(true, versions:compare(lte, {0,0,2, <<>>}, {0,0,2, <<>>}))
+    ].
     
 
 can_compare_with_gt_test() -> 
-    true = versions:compare(gt, {2,0,0, <<>>}, {1,0,0, <<>>}),
-    false = versions:compare(gt, {1,0,0, <<>>}, {2,0,0, <<>>}),
-    false = versions:compare(gt, {2,0,0, <<>>}, {2,0,0, <<>>}),
-    true = versions:compare(gt, {0,2,0, <<>>}, {0,1,0, <<>>}),
-    false = versions:compare(gt, {0,1,0, <<>>}, {0,2,0, <<>>}),
-    false = versions:compare(gt, {0,2,0, <<>>}, {0,2,0, <<>>}),
-    true = versions:compare(gt, {0,0,2, <<>>}, {0,0,1, <<>>}),
-    false = versions:compare(gt, {0,0,1, <<>>}, {0,0,2, <<>>}),
-    false = versions:compare(gt, {0,0,2, <<>>}, {0,0,2, <<>>}).
+    [
+        ?_assertMatch(true, versions:compare(gt, {2,0,0, <<>>}, {1,0,0, <<>>})),
+        ?_assertMatch(false, versions:compare(gt, {1,0,0, <<>>}, {2,0,0, <<>>})),
+        ?_assertMatch(false, versions:compare(gt, {2,0,0, <<>>}, {2,0,0, <<>>})),
+        ?_assertMatch(true, versions:compare(gt, {0,2,0, <<>>}, {0,1,0, <<>>})),
+        ?_assertMatch(false, versions:compare(gt, {0,1,0, <<>>}, {0,2,0, <<>>})),
+        ?_assertMatch(false, versions:compare(gt, {0,2,0, <<>>}, {0,2,0, <<>>})),
+        ?_assertMatch(true, versions:compare(gt, {0,0,2, <<>>}, {0,0,1, <<>>})),
+        ?_assertMatch(false, versions:compare(gt, {0,0,1, <<>>}, {0,0,2, <<>>})),
+        ?_assertMatch(false, versions:compare(gt, {0,0,2, <<>>}, {0,0,2, <<>>}))
+    ].
     
 
 can_compare_with_gte_test() -> 
-    true = versions:compare(gte, {2,0,0, <<>>}, {1,0,0, <<>>}),
-    false = versions:compare(gte, {1,0,0, <<>>}, {2,0,0, <<>>}),
-    true = versions:compare(gte, {2,0,0, <<>>}, {2,0,0, <<>>}),
-    true = versions:compare(gte, {0,2,0, <<>>}, {0,1,0, <<>>}),
-    false = versions:compare(gte, {0,1,0, <<>>}, {0,2,0, <<>>}),
-    true = versions:compare(gte, {0,2,0, <<>>}, {0,2,0, <<>>}),
-    true = versions:compare(gte, {0,0,2, <<>>}, {0,0,1, <<>>}),
-    false = versions:compare(gte, {0,0,1, <<>>}, {0,0,2, <<>>}),
-    true = versions:compare(gte, {0,0,2, <<>>}, {0,0,2, <<>>}).
+    [
+        ?_assertMatch(true, versions:compare(gte, {2,0,0, <<>>}, {1,0,0, <<>>})),
+        ?_assertMatch(false, versions:compare(gte, {1,0,0, <<>>}, {2,0,0, <<>>})),
+        ?_assertMatch(true, versions:compare(gte, {2,0,0, <<>>}, {2,0,0, <<>>})),
+        ?_assertMatch(true, versions:compare(gte, {0,2,0, <<>>}, {0,1,0, <<>>})),
+        ?_assertMatch(false, versions:compare(gte, {0,1,0, <<>>}, {0,2,0, <<>>})),
+        ?_assertMatch(true, versions:compare(gte, {0,2,0, <<>>}, {0,2,0, <<>>})),
+        ?_assertMatch(true, versions:compare(gte, {0,0,2, <<>>}, {0,0,1, <<>>})),
+        ?_assertMatch(false, versions:compare(gte, {0,0,1, <<>>}, {0,0,2, <<>>})),
+        ?_assertMatch(true, versions:compare(gte, {0,0,2, <<>>}, {0,0,2, <<>>}))
+    ].
     
 
 
 can_match_test() ->
-    true = versions:matches([{eq, {2,0,0, <<>>}}], {2,0,0, <<>>}).
+    ?_assertMatch(true, versions:matches([{eq, {2,0,0, <<>>}}], {2,0,0, <<>>})).
 
 % porting of puppet semver specs
 should_parse_basic_version_strings_test_() ->
     [
-        ?_assert({0,0,0,<<"">>} =:=versions:version(<<"0.0.0">>)),
-        ?_assert({999,999,999,<<"">>} =:=versions:version(<<"999.999.999">>)),
-        ?_assert({0,0,0,<<"">>} =:=versions:version(<<"v0.0.0">>)),
-        ?_assert({999,999,999,<<"">>} =:=versions:version(<<"v999.999.999">>))
+        ?_assertMatch({0,0,0,<<"">>}, versions:version(<<"0.0.0">>)),
+        ?_assertMatch({999,999,999,<<"">>}, versions:version(<<"999.999.999">>)),
+        ?_assertMatch({0,0,0,<<"">>}, versions:version(<<"v0.0.0">>)),
+        ?_assertMatch({999,999,999,<<"">>}, versions:version(<<"v999.999.999">>))
     ].
 
 should_parse_special_version_strings_test_() ->
@@ -87,13 +95,13 @@ should_parse_special_version_strings_test_() ->
 
 should_fail_on_invalid_version_strings_test_() ->
     [
-        ?_assertException(_T, _D, versions:version(<<"nope">>)),
-        ?_assertException(_T, _D, versions:version(<<"0.0foo">>)),
-        ?_assertException(_T, _D, versions:version(<<"999.999">>)),
-        ?_assertException(_T, _D, versions:version(<<"x0.0.0">>)),
-        ?_assertException(_T, _D, versions:version(<<"z.z.z">>)),
-        ?_assertException(_T, _D, versions:version(<<"1.2.3beta">>)),
-        ?_assertException(_T, _D, versions:version(<<"1.x.y">>))
+        ?_assertException(error, _, versions:version(<<"nope">>)),
+        ?_assertException(error, _, versions:version(<<"0.0foo">>)),
+        ?_assertException(error, _, versions:version(<<"999.999">>)),
+        ?_assertException(error, _, versions:version(<<"x0.0.0">>)),
+        ?_assertException(error, _, versions:version(<<"z.z.z">>)),
+        ?_assertException(error, _, versions:version(<<"1.2.3beta">>)),
+        ?_assertException(error, _, versions:version(<<"1.x.y">>))
     ].
 
 should_produce_expected_constraints_test_() ->
