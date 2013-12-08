@@ -1,0 +1,4 @@
+class acceptance2 {
+
+
+}
