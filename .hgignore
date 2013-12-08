@@ -8,5 +8,3 @@
 .idea
 ^muppetforge-integration/pkg
 ^apps/muppet_repository/priv/assets/
-^acceptance-tests/resources/muppetforge-acceptance1/pkg/
-^acceptance-tests/resources/muppetforge-acceptance2/pkg/

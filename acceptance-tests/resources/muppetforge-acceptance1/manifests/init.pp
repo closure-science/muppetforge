@@ -1,4 +1,0 @@
-class acceptance1 {
-
-
-}

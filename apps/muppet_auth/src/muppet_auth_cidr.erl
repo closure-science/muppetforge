@@ -23,7 +23,7 @@ terminate(_AllowedAddresses) ->
     ok.
 
 %% @private
-is_auth([], Ip) ->
+is_auth([], _Ip) ->
     false;
 is_auth([Spec|Rest], Ip) ->
     case in_whitelist(Spec, Ip) of
