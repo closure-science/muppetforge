@@ -2,13 +2,11 @@
 
 -behaviour(supervisor).
 -export([init/1]).
+-define(MAX_RESTART, 5).
+-define(MAX_TIME, 100).
 
 init([]) ->
-    MaxRestart = 5,
-    MaxTime = 100,
-    StartFun = {muppet_forge, start_httpd, []},
-    Modules = [muppet_forge],
     {ok, { 
-        {one_for_one, MaxRestart, MaxTime}, 
-        [{muppet_forge, StartFun, permanent, brutal_kill, worker, Modules}]
+        {one_for_one, ?MAX_RESTART, ?MAX_TIME}, 
+        [{muppet_forge, {muppet_forge, start_httpd, []}, permanent, brutal_kill, worker, [muppet_forge]}]
     }}.

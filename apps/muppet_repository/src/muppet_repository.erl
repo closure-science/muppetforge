@@ -9,7 +9,6 @@
 -spec start_link() -> {ok,pid()} | ignore | {error, {already_started, pid()} | term()}.
 % -----------------------------------------------------------------------------
 start_link() ->
-    process_flag(trap_exit, true),
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 % -----------------------------------------------------------------------------

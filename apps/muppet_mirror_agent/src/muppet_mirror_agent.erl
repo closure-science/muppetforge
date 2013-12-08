@@ -16,7 +16,6 @@
 -spec start_link() -> {ok,pid()} | ignore | {error, {already_started, pid()} | term()}.
 % -----------------------------------------------------------------------------
 start_link() ->
-    process_flag(trap_exit, true),
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 
@@ -146,7 +145,7 @@ handle_info({upstream_metadata, Observe, At, UpstreamBaseUrl, VersionsFromUpstre
     NewUpstream = dict:store(UpstreamBaseUrl, {Observe, At}, State#state.upstream),
     {noreply, State#state{ upstream = NewUpstream, tbd=NewTbd }};
 
-handle_info({upstream_failed, Observe, At, UpstreamBaseUrl, _ErrorType, _Reason}, State) ->
+handle_info({upstream_failed, _Observe, At, UpstreamBaseUrl, _ErrorType, _Reason}, State) ->
     NewUpstream = dict:store(UpstreamBaseUrl, At, State#state.upstream),
     {noreply, State#state{ upstream = NewUpstream }};
 

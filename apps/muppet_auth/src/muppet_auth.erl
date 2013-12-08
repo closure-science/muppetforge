@@ -12,7 +12,6 @@
 -callback terminate(State::any()) -> ok.
 
 start_link(AuthModules) ->
-    process_flag(trap_exit, true),
     gen_server:start_link({local, ?MODULE}, ?MODULE, AuthModules, []).
 
 
