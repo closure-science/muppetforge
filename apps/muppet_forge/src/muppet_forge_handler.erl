@@ -66,34 +66,34 @@ handle(Req, {deploy, <<"POST">>}) ->
     {ok, Req2, undefined};
 
 handle(Req, {blacklist, <<"GET">>}) ->
-    BlackList = muppet_mirror_agent:fetch_blacklist(),
-    PropLists = muppet_mirror_agent:serializable_blacklist(BlackList),
+    BlackList = muppet_upstream:fetch_blacklist(),
+    PropLists = muppet_upstream:serializable_blacklist(BlackList),
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(PropLists), Req),
     {ok, Req2, undefined};
 
 handle(Req, {blacklist, <<"PUT">>}) ->
     {ok, BlacklistBinary, _} = cowboy_req:body(Req),
     PropLists = jiffy:decode(BlacklistBinary),
-    BlackList = muppet_mirror_agent:proplists_to_blacklist(PropLists),
-    ok = muppet_mirror_agent:store_blacklist(BlackList),
+    BlackList = muppet_upstream:proplists_to_blacklist(PropLists),
+    ok = muppet_upstream:store_blacklist(BlackList),
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
     {ok, Req2, undefined};
 
 
 handle(Req, {errors, <<"GET">>}) ->
-    Errors = muppet_mirror_agent:fetch_errors(),
-    Serializable = muppet_mirror_agent:serializable_errors(Errors),
+    Errors = muppet_upstream:fetch_errors(),
+    Serializable = muppet_upstream:serializable_errors(Errors),
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(Serializable), Req),
     {ok, Req2, undefined};
 
 handle(Req, {errors, <<"DELETE">>}) ->
-    ok = muppet_mirror_agent:reset_errors(),
+    ok = muppet_upstream:reset_errors(),
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
     {ok, Req2, undefined};
 
 
 handle(Req, {upstream, <<"GET">>}) ->
-    UpstreamDict = muppet_mirror_agent:fetch_upstream(),
+    UpstreamDict = muppet_upstream:fetch_upstream(),
     Serializable = lists:map(fun({BaseUrl, {Observer, Time}}) ->
         TimeMillis = timer:now_diff(Time, {0,0,0}) div 1000,
         {[ {base_url, BaseUrl}, {observe, Observer}, {time, TimeMillis} ]}
@@ -108,12 +108,12 @@ handle(Req, {upstream, <<"PUT">>}) ->
         {_, UpstreamUrl} = proplists:lookup(<<"base_url">>, UpstreamInfo),
         {UpstreamUrl, Observe}
     end, jiffy:decode(Body)),
-    ok = muppet_mirror_agent:store_upstream(UpstreamInfos),
+    ok = muppet_upstream:store_upstream(UpstreamInfos),
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
     {ok, Req2, undefined};
 
 handle(Req, {info, <<"GET">>}) ->
-    MirrorAgentInfo = muppet_mirror_agent:info(),
+    MirrorAgentInfo = muppet_upstream:info(),
     RepositoryInfo = muppet_repository:info(),
     Serializable = {MirrorAgentInfo ++ RepositoryInfo},
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(Serializable), Req),

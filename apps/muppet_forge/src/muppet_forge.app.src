@@ -2,7 +2,7 @@
     {description, "Muppet forge"},
     {vsn, "1"},
     {registered, []},
-    {applications, [ kernel, stdlib, crypto, public_key, ssl, cowboy, jiffy, muppet_repository, muppet_mirror_agent, muppet_auth ]},
+    {applications, [ kernel, stdlib, crypto, public_key, ssl, cowboy, jiffy, muppet_repository, muppet_upstream, muppet_auth ]},
     {mod, { muppet_forge_application, []}},
     {modules, [
         muppet_forge_application, 

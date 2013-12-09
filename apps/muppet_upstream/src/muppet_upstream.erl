@@ -1,4 +1,4 @@
--module(muppet_mirror_agent).
+-module(muppet_upstream).
 -behaviour(gen_server).
 -export([init/1, handle_cast/2, handle_call/3, handle_info/2, code_change/3, terminate/2]).
 -export([start_link/0]).
@@ -82,7 +82,12 @@ init([]) ->
 handle_cast({store_upstream, UpstreamDefinitions}, State) ->
     NewUpstream = upstream_from_definitions(UpstreamDefinitions),
     ok = dets:insert(storage, {upstream, UpstreamDefinitions}),
-    ok = dets:sync(storage),    
+    ok = dets:sync(storage),
+    UpstreamsToObserve = dict:fold(fun
+        (_BaseUrl, {false, _At}, Acc) -> Acc;
+        (BaseUrl, {true, _At}, Acc) -> [BaseUrl|Acc]
+    end,[] , NewUpstream),
+    muppet_upstream_listener:set_observed(UpstreamsToObserve),
     {noreply, State#state{ upstream = NewUpstream, tbd = dict:new(), errors = dict:new() }};
 handle_cast({store_blacklist, Retards}, State) ->
     ok = dets:insert(storage, {retards, Retards}),
@@ -133,20 +138,12 @@ handle_info(tick, State) ->
     {noreply, State#state{ pids = sets:union(sets:from_list(Pids), State#state.pids)}};
 
 handle_info({upstream_metadata, Observe, At, UpstreamBaseUrl, VersionsFromUpstream}, State) ->
-    Unknown = lists:filter(fun({_BaseUrl, {{Author, Module}, Version}}) ->
-        not muppet_repository:knows(Author, Module, Version)
-    end, VersionsFromUpstream),
-    NotBlacklisted = lists:filter(fun({BaseUrl, {{Author, Module}, Version}}) ->
-        allowed(State#state.retards, {BaseUrl, Author, Module, Version})
-    end, Unknown),
-    NewTbd = lists:foldl(fun({BaseUrl, Coords}, Accum) ->
-        dict:store(Coords, BaseUrl, Accum)
-    end, State#state.tbd, NotBlacklisted),
+    NewTbd = new_tbd(VersionsFromUpstream, State),
     NewUpstream = dict:store(UpstreamBaseUrl, {Observe, At}, State#state.upstream),
     {noreply, State#state{ upstream = NewUpstream, tbd=NewTbd }};
 
-handle_info({upstream_failed, _Observe, At, UpstreamBaseUrl, _ErrorType, _Reason}, State) ->
-    NewUpstream = dict:store(UpstreamBaseUrl, At, State#state.upstream),
+handle_info({upstream_failed, Observe, At, UpstreamBaseUrl, _ErrorType, _Reason}, State) ->
+    NewUpstream = dict:store(UpstreamBaseUrl, {Observe, At}, State#state.upstream),
     {noreply, State#state{ upstream = NewUpstream }};
 
 handle_info({tarball_done, _At, _BaseUrl, AuthorAndModule, Version}, State) ->
@@ -157,6 +154,10 @@ handle_info({tarball_failed, At, BaseUrl, AuthorAndModule, Version, ErrorType, R
     NewTbd = dict:erase({AuthorAndModule, Version}, State#state.tbd),
     NewErrors = dict:store({BaseUrl, AuthorAndModule, Version}, {At, {ErrorType, Reason, StackTrace}}, State#state.errors),
     {noreply, State#state{ tbd = NewTbd, errors = NewErrors}};
+
+handle_info({new_release, FromUpstream, Author, Module, Version, _TarballPath}, State) ->
+    NewTbd = new_tbd([{FromUpstream, {{Author, Module}, Version}}], State),
+    {noreply, State#state{ tbd = NewTbd}};
 
 handle_info({'EXIT', Pid, _Reason}, State) ->
     NewPids = case sets:is_element(Pid, State#state.pids) of
@@ -211,6 +212,17 @@ refresh_upstream(Parent, Now, UpstreamBaseUrl, Observe) ->
     catch 
         T:R -> Parent ! {upstream_failed, Observe, Now, UpstreamBaseUrl, T, R}
     end.
+
+new_tbd(VersionsFromUpstream, State) ->
+    Unknown = lists:filter(fun({_BaseUrl, {{Author, Module}, Version}}) ->
+        not muppet_repository:knows(Author, Module, Version)
+    end, VersionsFromUpstream),
+    NotBlacklisted = lists:filter(fun({BaseUrl, {{Author, Module}, Version}}) ->
+        allowed(State#state.retards, {BaseUrl, Author, Module, Version})
+    end, Unknown),
+    lists:foldl(fun({BaseUrl, Coords}, Accum) ->
+        dict:store(Coords, BaseUrl, Accum)
+    end, State#state.tbd, NotBlacklisted).
 
 fetch_and_store_tarball(Parent, Now, BaseUrl, AuthorAndModule, Version) ->
     try

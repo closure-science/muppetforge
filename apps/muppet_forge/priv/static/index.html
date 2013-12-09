@@ -470,7 +470,7 @@ muppet_forge.prototype.add_upstream = function(){
     var self = this;
     var newUpstream = {
       base_url : $('#upstream-base-url-field').val(),
-      observe : $('#upstream-upstream-observe-field').val(),
+      observe : $('#upstream-observe-field').is(':checked'),
       time: 0
     };
     this.data.upstream.push(newUpstream);
