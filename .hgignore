@@ -1,4 +1,3 @@
-^rel/files
 ^rel/[a-z_]+node
 ^deps
 .eunit/
