@@ -25,7 +25,7 @@ websocket_handle({text, Msg}, _ConnState, State) ->
     {<<"module">>, Module} = proplists:lookup(<<"module">>, ModuleInfo),
     {<<"version">>, Version} = proplists:lookup(<<"version">>, ModuleInfo),
     {<<"path">>, TarballPath} = proplists:lookup(<<"path">>, ModuleInfo),
-    State#state.parent ! {new_release, State#state.upstream, Author, Module, Version, TarballPath},
+    muppet_upstream ! {new_release, State#state.upstream, Author, Module, versions:version(Version), TarballPath},
     {ok, State};
 websocket_handle({_Other, _Msg}, _ConnState, State) ->
     {ok, State}.

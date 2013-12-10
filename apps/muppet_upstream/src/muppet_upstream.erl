@@ -75,19 +75,17 @@ init([]) ->
     {ok, storage} = dets:open_file(storage, [{file,  StorageFileName}]),
     Retards = dets_value(storage, retards, []),
     UpstreamDefinitions = dets_value(storage, upstream, []),
+    NewUpstreams = upstream_from_definitions(UpstreamDefinitions),
+    ok = observe_marked_upstreams(NewUpstreams),
     process_flag(trap_exit, true),
     self() ! tick,
-    {ok, #state{upstream = upstream_from_definitions(UpstreamDefinitions), retards = Retards}}.
+    {ok, #state{upstream = NewUpstreams, retards = Retards}}.
 
 handle_cast({store_upstream, UpstreamDefinitions}, State) ->
     NewUpstream = upstream_from_definitions(UpstreamDefinitions),
     ok = dets:insert(storage, {upstream, UpstreamDefinitions}),
     ok = dets:sync(storage),
-    UpstreamsToObserve = dict:fold(fun
-        (_BaseUrl, {false, _At}, Acc) -> Acc;
-        (BaseUrl, {true, _At}, Acc) -> [BaseUrl|Acc]
-    end,[] , NewUpstream),
-    muppet_upstream_listener:set_observed(UpstreamsToObserve),
+    observe_marked_upstreams(NewUpstream),
     {noreply, State#state{ upstream = NewUpstream, tbd = dict:new(), errors = dict:new() }};
 handle_cast({store_blacklist, Retards}, State) ->
     ok = dets:insert(storage, {retards, Retards}),
@@ -212,6 +210,14 @@ refresh_upstream(Parent, Now, UpstreamBaseUrl, Observe) ->
     catch 
         T:R -> Parent ! {upstream_failed, Observe, Now, UpstreamBaseUrl, T, R}
     end.
+
+observe_marked_upstreams(Upstreams) ->
+    UpstreamsToObserve = dict:fold(fun
+        (_BaseUrl, {false, _At}, Acc) -> Acc;
+        (BaseUrl, {true, _At}, Acc) -> [BaseUrl|Acc]
+    end,[] , Upstreams),
+    muppet_upstream_listener:set_observed(UpstreamsToObserve).
+
 
 new_tbd(VersionsFromUpstream, State) ->
     Unknown = lists:filter(fun({_BaseUrl, {{Author, Module}, Version}}) ->
