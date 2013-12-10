@@ -216,7 +216,7 @@ observe_marked_upstreams(Upstreams) ->
         (_BaseUrl, {false, _At}, Acc) -> Acc;
         (BaseUrl, {true, _At}, Acc) -> [BaseUrl|Acc]
     end,[] , Upstreams),
-    muppet_upstream_listener:set_observed(UpstreamsToObserve).
+    muppet_upstream_observer:set_observed(UpstreamsToObserve).
 
 
 new_tbd(VersionsFromUpstream, State) ->

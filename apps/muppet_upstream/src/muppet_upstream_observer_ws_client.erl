@@ -1,4 +1,4 @@
--module(muppet_upstream_listener_ws_client).
+-module(muppet_upstream_observer_ws_client).
 -behaviour(websocket_client_handler).
 -export([init/2, websocket_handle/3, websocket_info/3, websocket_terminate/3]).
 -export([start_link/1, close/1]).

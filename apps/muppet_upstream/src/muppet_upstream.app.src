@@ -1,9 +1,9 @@
 {application, muppet_upstream, [
-    {description, "Puppet repository mirroring agent."},
+    {description, "Puppet repository upstream agent."},
     {vsn, "1"},
-    {registered, [muppet_upstream_application, muppet_upstream_supervisor, muppet_upstream]},
+    {registered, [muppet_upstream_application, muppet_upstream_supervisor, muppet_upstream, muppet_upstream_observer]},
     {applications, [kernel, stdlib, crypto, ssh, inets, muppet_repository, websocket_client]},
-	{modules, [muppet_upstream_application, muppet_upstream_supervisor ]},
+	{modules, [muppet_upstream_application, muppet_upstream_supervisor, muppet_upstream, muppet_upstream_observer, muppet_upstream_observer_ws_client ]},
     {mod, { muppet_upstream_application, []}},
     {env, []}
 ]}.
