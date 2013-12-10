@@ -1,0 +1,44 @@
+-module(muppet_upstream_listener_ws_client).
+-behaviour(websocket_client_handler).
+-export([init/2, websocket_handle/3, websocket_info/3, websocket_terminate/3]).
+-export([start_link/1, close/1]).
+
+-record(state, { parent, upstream } ).
+
+start_link(Upstream) when is_list(Upstream) ->
+    start_link(list_to_binary(Upstream));
+start_link(Upstream) ->
+    Endpoint = upstream_to_ws_endpoint(Upstream),
+    websocket_client:start_link(Endpoint, ?MODULE, [self(), Upstream]).
+
+close(Pid) ->
+    Pid ! close.
+
+init([ParentPid, Upstream], _ConnState) ->
+    {ok, #state{ parent = ParentPid, upstream = Upstream }, 5000}.
+
+websocket_handle({pong, _Msg}, _ConnState, State) ->
+    {ok, State};
+websocket_handle({text, Msg}, _ConnState, State) ->
+    {ModuleInfo} = jiffy:decode(Msg),
+    {<<"author">>, Author} = proplists:lookup(<<"author">>, ModuleInfo),
+    {<<"module">>, Module} = proplists:lookup(<<"module">>, ModuleInfo),
+    {<<"version">>, Version} = proplists:lookup(<<"version">>, ModuleInfo),
+    {<<"path">>, TarballPath} = proplists:lookup(<<"path">>, ModuleInfo),
+    State#state.parent ! {new_release, State#state.upstream, Author, Module, Version, TarballPath},
+    {ok, State};
+websocket_handle({_Other, _Msg}, _ConnState, State) ->
+    {ok, State}.
+
+websocket_info(close, _ConnState, State) ->
+    {close, <<>>, State};
+websocket_info(_Any, _ConnState, State) ->
+    {ok, State}.
+
+websocket_terminate(_Reason, _ConnState, _State) ->
+    ok.
+
+upstream_to_ws_endpoint(<<"https:", Rest/binary>>) ->
+    "wss:" ++ binary_to_list(Rest) ++ "/api/listen";
+upstream_to_ws_endpoint(<<"http:", Rest/binary>>) ->
+    "ws:" ++ binary_to_list(Rest) ++ "/api/listen".
