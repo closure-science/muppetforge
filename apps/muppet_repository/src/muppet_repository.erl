@@ -3,8 +3,9 @@
 -behaviour(gen_server).
 -export([find/1, search/1, delete/3, find_release/2, store/1, assets_dir/0, status/0, knows/3, info/0]).
 -export([init/1, handle_cast/2, handle_call/3, handle_info/2, code_change/3, terminate/2]).
+-export([add_handler/3, delete_handler/3]).
 -export([start_link/0]).
-
+-define(EVENT_MANAGER_NAME, list_to_atom(?MODULE_STRING ++ "_event_manager")).
 % -----------------------------------------------------------------------------
 -spec start_link() -> {ok,pid()} | ignore | {error, {already_started, pid()} | term()}.
 % -----------------------------------------------------------------------------
@@ -53,6 +54,19 @@ search(Terms) ->
 knows(Author, Module, Version) ->
     gen_server:call(?MODULE, {knows, Author, Module, Version}).
 
+% -----------------------------------------------------------------------------
+-spec add_handler(Atom::atom(), Id::any(), Args::[any()]) -> ok | {'EXIT',Reason::any()} | term().
+% -----------------------------------------------------------------------------
+add_handler(Atom, Id, Args) ->
+    gen_event:add_handler(?EVENT_MANAGER_NAME, {Atom, Id}, Args).
+
+
+% -----------------------------------------------------------------------------
+-spec delete_handler(Atom::atom(), Id::any() ,Args::[any()]) -> term() | {error,module_not_found} | {'EXIT',Reason::any()}.
+% -----------------------------------------------------------------------------
+delete_handler(Atom, Id, Args) ->
+    gen_event:delete_handler(?EVENT_MANAGER_NAME, {Atom, Id}, Args).
+
 
 % -----------------------------------------------------------------------------
 -spec status() -> term().
@@ -70,6 +84,7 @@ info() ->
 init([]) ->
     filelib:ensure_dir(filename:join(assets_dir(), "anyname")),
     State = muppet_driver:new(assets_dir()),
+    {ok, _Pid} = gen_event:start_link({local, ?EVENT_MANAGER_NAME}),
     {ok, State}.
 
 handle_cast(_Msg, State) ->
@@ -78,7 +93,7 @@ handle_cast(_Msg, State) ->
 handle_call({store_module, TarballBinary}, _From, State) ->
     {Response, NewState} = case muppet_driver:store(State, assets_dir(), TarballBinary) of
         {ok, ReleaseCoords, State2} -> 
-            muppet_repository_observable:notify_all({new_release, ReleaseCoords}),
+            gen_event:notify(?EVENT_MANAGER_NAME, {new_release, ReleaseCoords}),
             {{ok, ReleaseCoords}, State2};
         E -> {E, State}
     end,

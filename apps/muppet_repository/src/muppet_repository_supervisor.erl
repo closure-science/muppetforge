@@ -10,7 +10,6 @@ init([]) ->
     {ok, {
         { one_for_one, ?MAX_RESTART, ?MAX_TIME },
         [
-            {muppet_repository_observable, {muppet_repository_observable, start_link, []}, permanent, brutal_kill, worker, [muppet_repository_observable]},
             {muppet_repository, {muppet_repository, start_link, []}, permanent, brutal_kill, worker, [muppet_repository]}
         ]
     }}.

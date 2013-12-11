@@ -4,7 +4,7 @@
 -export([start_link/0]).
 -export([set_observed/1]).
 -define(TICK_INTERVAL_MILLIS, 20000).
--record(state, { observers = [], failed = [] } ).
+-record(state, { observers = [], failed = [], timer} ).
 
 % -----------------------------------------------------------------------------
 -spec start_link() -> {ok,pid()} | ignore | {error, {already_started, pid()} | term()}.
@@ -28,7 +28,6 @@ handle_cast({set_observed, UpstreamBaseUrls}, State) ->
     NewState = start_observing(UpstreamBaseUrls),
     {noreply, NewState};
 
-
 handle_cast(_Req, State) ->
     {noreply, State}.
 
@@ -37,10 +36,11 @@ handle_call(_Req, _From, State) ->
 
 handle_info(tick, State) ->
     NewState = start_observing(State#state.failed),
-    timer:send_after(?TICK_INTERVAL_MILLIS, tick),
+    {ok, Timer} = timer:send_after(?TICK_INTERVAL_MILLIS, tick),
     {noreply, #state{ 
         observers = State#state.observers ++ NewState#state.observers, 
-        failed = NewState#state.failed
+        failed = NewState#state.failed,
+        timer = Timer
     }};
 
 handle_info({'EXIT', Pid, _Reason}, State) ->
@@ -52,6 +52,8 @@ handle_info({'EXIT', Pid, _Reason}, State) ->
                 failed = [BaseUrl | State#state.failed] 
             }
     end,
+    timer:cancel(State#state.timer),
+    self() ! tick,
     {noreply, NewState};
 
 handle_info(_Msg, State) ->

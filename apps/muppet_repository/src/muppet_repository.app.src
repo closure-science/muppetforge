@@ -3,7 +3,7 @@
     {vsn, "1"},
     {registered, [muppet_repository_application, muppet_repository_supervisor, muppet_repository]},
     {applications, [kernel, stdlib, versions]},
-	{modules, [muppet_driver, muppet_repository, muppet_repository_observable, muppet_repository_application, muppet_repository_supervisor ]},
+	{modules, [muppet_repository_application, muppet_repository_supervisor, muppet_repository, muppet_driver]},
     {mod, { muppet_repository_application, []}},
     {env, []}
 ]}.
