@@ -1,4 +1,4 @@
--module(muppet_forge_handler).
+-module(muppet_forge_handler_json).
 -behaviour(cowboy_http_handler).
 -export([init/3, handle/2, terminate/3]).
 -define(HEADERS, [{<<"content-type">>, <<"application/json">>}]).

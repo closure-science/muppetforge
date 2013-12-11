@@ -8,9 +8,9 @@
         muppet_forge_application, 
         muppet_forge_supervisor, 
         muppet_forge, 
-        muppet_forge_handler,
-        muppet_forge_static_handler,
-        muppet_forge_websocket_handler
+        muppet_forge_handler_json,
+        muppet_forge_handler_static,
+        muppet_forge_handler_websocket
     ]},
     {env, []}
  ]}.
