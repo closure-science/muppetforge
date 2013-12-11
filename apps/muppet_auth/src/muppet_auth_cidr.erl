@@ -32,10 +32,8 @@ is_auth([Spec|Rest], Ip) ->
     end.
 
 %% @private
-in_whitelist({Size, Prefix, Bits}, Peer) when is_tuple(Peer), Size =:= size(Peer) ->
-    Prefix =:= cidr_to_prefix(Peer, Bits);
-in_whitelist(_, _) ->
-    false.
+in_whitelist({Size, Prefix} = Spec, Peer) ->
+    Spec =:= cidr_to_prefix(Peer, bit_size(Prefix)).
 
 %% @private
 cidr_to_prefix({O1, O2, O3, O4}, Bits) ->

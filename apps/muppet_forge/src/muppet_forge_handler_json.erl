@@ -5,7 +5,7 @@
 
 
 
-init({tcp, http}, Req, [Atom]) ->
+init({_, _}, Req, [Atom]) ->
     Msg = case muppet_auth:is_authorized(Req) of
         false -> should_auth;
         true ->

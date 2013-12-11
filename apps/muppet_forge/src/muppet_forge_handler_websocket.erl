@@ -6,7 +6,7 @@
 -record(state, { handler_ref }).
 
  
-init({tcp, http}, _Req, _Opts) ->
+init({_, _}, _Req, _Opts) ->
     {upgrade, protocol, cowboy_websocket}.
  
 websocket_init(_Transport, Req, _Opts) ->
@@ -24,7 +24,6 @@ websocket_info({new_release, {Author, Module, Version, File}}, Req, State) ->
     {reply, {text, Msg}, Req, State, hibernate};
 
 websocket_info(_Info, Req, State) ->
-    io:format("WINFO ~p~n", [_Info]),
     {ok, Req, State, hibernate}.
 
 websocket_handle({ping, _Data}, Req, State) ->

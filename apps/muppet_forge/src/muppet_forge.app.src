@@ -6,8 +6,6 @@
     {mod, { muppet_forge_application, []}},
     {modules, [
         muppet_forge_application, 
-        muppet_forge_supervisor, 
-        muppet_forge, 
         muppet_forge_handler_json,
         muppet_forge_handler_static,
         muppet_forge_handler_websocket

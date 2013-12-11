@@ -2,7 +2,7 @@
 -behaviour(cowboy_http_handler).
 -export([init/3, handle/2, terminate/3]).
 
-init({tcp, http}, Req, [AssetsDir]) ->
+init({_, _}, Req, [AssetsDir]) ->
     case muppet_auth:is_authorized(Req) of
         false -> {ok, Req, should_auth};
         true ->  cowboy_static:rest_init(Req, {dir, AssetsDir })

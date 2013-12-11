@@ -4,14 +4,9 @@
 
 start(_StartType, _StartArgs) ->
     register(muppet_auth_application, self()),
-    muppet_auth_supervisor:start_link(auth_modules_and_options()).
+    AuthModules = application:get_env(muppet_auth, auth_modules, [{muppet_auth_always,[]}]),
+    muppet_auth_supervisor:start_link(AuthModules).
 
-
-auth_modules_and_options() ->
-    case proplists:get_value(auth_modules, application:get_all_env()) of
-        undefined -> [{muppet_auth_always,[]}];
-        AuthModulesAndOptions -> AuthModulesAndOptions
-    end.
 
 stop(_State) ->
     ok.
