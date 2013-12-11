@@ -1,0 +1,8 @@
+{application, versions, [
+    {description, "Semantic Versioning."},
+    {vsn, "1"},
+    {registered, []},
+    {applications, [kernel, stdlib]},
+	{modules, [versions]},
+    {env, []}
+]}.

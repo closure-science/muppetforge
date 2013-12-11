@@ -2,13 +2,15 @@
     {description, "Muppet forge"},
     {vsn, "1"},
     {registered, []},
-    {applications, [ kernel, stdlib, crypto, public_key, ssl, cowboy, jiffy, muppet_repository, muppet_upstream, muppet_auth ]},
+    {applications, [ kernel, stdlib, crypto, public_key, ssl, cowboy, jiffy, versions, muppet_repository, muppet_upstream, muppet_auth ]},
     {mod, { muppet_forge_application, []}},
     {modules, [
         muppet_forge_application, 
         muppet_forge_supervisor, 
         muppet_forge, 
-        muppet_forge_handler
+        muppet_forge_handler,
+        muppet_forge_static_handler,
+        muppet_forge_websocket_handler
     ]},
     {env, []}
  ]}.
