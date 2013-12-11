@@ -1,7 +1,7 @@
 <html>
 <head>
     <link rel="shortcut icon" href="favicon.ico" />
-    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css" >
+    <link rel="stylesheet" type="text/css" href="static/css/bootstrap.min.css" >
     <style>
         html, body { height: 100%; }
         #wrap {
@@ -68,9 +68,9 @@
     The Muppet Forge exposes an API compatible with Puppet Forge, therefore it integrates naturally with the <a href="http://docs.puppetlabs.com/puppet/3/reference/modules_installing.html">Puppet module tool</a>.
     Just point to your Muppet Forge installation in puppet.conf:
     <pre style="margin-top: 14px;"><code>[main]
-    module_repository = http://localhost:8080/mf</code></pre>
+    module_repository = http://localhost:8080</code></pre>
     Or provide the <code>--module_repository</code> option  when invoking the Puppet module tool:
-    <pre style="margin-top: 14px;"><code>puppet module search --module_repository=http://localhost:8080/mf</code></pre>
+    <pre style="margin-top: 14px;"><code>puppet module search --module_repository=http://localhost:8080</code></pre>
 
     <h4>The muppetforge/integration Puppet module</h4>
     To aid integration with the new endpoints defined in Muppet Forge, a Puppet module is provided.
@@ -93,7 +93,7 @@
     <pre><code>caligin@theleth:~/projects/fmeden-sample$ puppet module build
 Notice: Building /home/caligin/projects/fmeden-sample for release
 Module built: /home/caligin/projects/fmeden-sample/pkg/fmeden-sample-0.1.0.tar.gz
-caligin@theleth:~/projects/fmeden-sample$ curl -X POST --data-binary @pkg/fmeden-sample-0.1.0.tar.gz http://localhost:8080/mf/api/deploy
+caligin@theleth:~/projects/fmeden-sample$ curl -X POST --data-binary @pkg/fmeden-sample-0.1.0.tar.gz http://localhost:8080/api/mf/deploy
 "ok"</code></pre>
 
     <h4>With Puppet</h4>
@@ -101,14 +101,14 @@ caligin@theleth:~/projects/fmeden-sample$ curl -X POST --data-binary @pkg/fmeden
     <pre style="margin-top: 14px;"><code>fmeden@Eve:~/projects/fmeden-sample$ puppet module build
 Notice: Building /home/fmeden/projects/fmeden-sample for release
 Module built: /home/fmeden/projects/fmeden-sample/pkg/fmeden-sample-0.1.0.tar.gz
-fmeden@Eve:~/projects/fmeden-sample$ puppet module deploy pkg/fmeden-sample-0.1.0.tar.gz --module_repository=http://localhost:8080/mf
-Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1.219:8080/mf ...
+fmeden@Eve:~/projects/fmeden-sample$ puppet module deploy pkg/fmeden-sample-0.1.0.tar.gz --module_repository=http://localhost:8080
+Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1.219:8080 ...
 {"result":"success"}</code></pre>
 
 
     <h2>API documentation</h2>
     <div class="panel panel-default">
-      <div class="panel-heading"><code>/mf/modules.json</code><span class="label label-warning pull-right">Puppet</span></div>
+      <div class="panel-heading"><code>/modules.json</code><span class="label label-warning pull-right">Puppet</span></div>
       <div class="panel-body">
         <dl class="dl-horizontal">
           <dt>GET</dt><dd>Retrieves the list of modules served by the Forge. Supports the optional query parameter <code>q=&lt;query terms&gt;</code></dd>
@@ -116,7 +116,7 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
       </div>
     </div>
     <div class="panel panel-default">
-      <div class="panel-heading"><code>/mf/api/v1/releases.json</code><span class="label label-warning pull-right">Puppet</span></div>
+      <div class="panel-heading"><code>/api/v1/releases.json</code><span class="label label-warning pull-right">Puppet</span></div>
       <div class="panel-body">
         <dl class="dl-horizontal">
           <dt>GET</dt><dd>Retrieves the available releases for a module along with their details (tarball location, dependencies...). Requires the <code>module=&lt;author&gt;/&lt;module name&gt;</code> query parameter and supports the optional <code>version=&lt;version constraints&gt;</code></dd>
@@ -124,7 +124,7 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
       </div>
     </div>
     <div class="panel panel-default">
-      <div class="panel-heading"><code>/mf/{author}/{modulename}.json</code><span class="label label-warning pull-right">Puppet</span></div>
+      <div class="panel-heading"><code>/{author}/{modulename}.json</code><span class="label label-warning pull-right">Puppet</span></div>
       <div class="panel-body">
         <dl class="dl-horizontal">
           <dt>GET</dt><dd>Retrieves detail information for a single module.
@@ -132,7 +132,7 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
       </div>
     </div>
     <div class="panel panel-default">
-      <div class="panel-heading"><code>/mf/api/{author}/{modulename}/{version}</code></div>
+      <div class="panel-heading"><code>/api/mf/{author}/{modulename}/{version}</code></div>
       <div class="panel-body">
         <dl class="dl-horizontal">
           <dt>DELETE</dt><dd>Deletes a release from the forge. If it is the last remaining release of a module, the module is deleted too.</dd>
@@ -140,7 +140,7 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
       </div>
     </div>
     <div class="panel panel-default">
-      <div class="panel-heading"><code>/mf/api/deploy</code></div>
+      <div class="panel-heading"><code>/api/mf/deploy</code></div>
       <div class="panel-body">
         <dl class="dl-horizontal">
           <dt>POST</dt><dd>Deploys a Puppet module tarball into the Forge. The tarball must be given as the request body. No other parameters are required as metadata will be extracted directly from the tarball. Missing or invalid metadata will incur in an error.</dd>
@@ -148,7 +148,7 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
       </div>
     </div>
     <div class="panel panel-default">
-      <div class="panel-heading"><code>/mf/api/blacklist</code></div>
+      <div class="panel-heading"><code>/api/mf/blacklist</code></div>
       <div class="panel-body">
         <dl class="dl-horizontal">
             <dt>GET</dt><dd>Retrieves the blacklist rules.</dd>
@@ -157,7 +157,7 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
       </div>
     </div>
     <div class="panel panel-default">
-      <div class="panel-heading"><code>/mf/api/upstream</code></div>
+      <div class="panel-heading"><code>/api/mf/upstream</code></div>
       <div class="panel-body">
         <dl class="dl-horizontal">
           <dt>GET</dt><dd>Retrieves the list of upstream Forges</dd>
@@ -166,7 +166,7 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
       </div>
     </div>
     <div class="panel panel-default">
-      <div class="panel-heading"><code>/mf/api/errors</code></div>
+      <div class="panel-heading"><code>/api/mf/errors</code></div>
       <div class="panel-body">
         <dl class="dl-horizontal">
           <dt>GET</dt><dd>Retrieves the list of errors got during the mirroring job.</dd>
@@ -174,7 +174,7 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
       </div>
     </div>
     <div class="panel panel-default">
-      <div class="panel-heading"><code>/mf/api/info</code></div>
+      <div class="panel-heading"><code>/api/mf/info</code></div>
       <div class="panel-body">
         <dl class="dl-horizontal">
           <dt>GET</dt><dd>Retrieves some informational counters about the Forge status.</dd>
@@ -205,8 +205,8 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
         </div>
     </div>
     <center>
-        <img class="hidden-xs" src="animal.png" />
-        <img class="visible-xs" src="animal-small.png">
+        <img class="hidden-xs" src="static/animal.png" />
+        <img class="visible-xs" src="static/animal-small.png">
     </center>
 </script>
 
@@ -330,7 +330,7 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
             {{setIndex @index}}
             {{#each releases}}
                 <div class="btn-group">
-                  <a href="mf{{file}}" download="{{../author}}-{{../name}}-{{version}}.tar.gz" class="btn btn-success btn-sm">{{version}}</a>
+                  <a href="{{file}}" download="{{../author}}-{{../name}}-{{version}}.tar.gz" class="btn btn-success btn-sm">{{version}}</a>
                   <button type="button" class="btn btn-sm btn-danger dropdown-toggle" onclick="mf.del_release({{../index}}, {{@index}})">
                     <span class="glyphicon glyphicon-remove"></span>&nbsp;
                   </button>
@@ -355,9 +355,9 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
     </div>
   </div>
 </script>
-<script src="js/jquery-2.0.3.min.js"></script>    
-<script src="js/handlebars-v1.1.2.js"></script>
-<script src="js/bootstrap.min.js"></script>
+<script src="static/js/jquery-2.0.3.min.js"></script>    
+<script src="static/js/handlebars-v1.1.2.js"></script>
+<script src="static/js/bootstrap.min.js"></script>
 <script>
 
 Handlebars.registerHelper('ts_as_date_string_or_never', function(timestamp) {
@@ -400,7 +400,7 @@ muppet_forge.prototype.info = function(){
 
 muppet_forge.prototype.animal = function(){
     var self = this
-    $.getJSON( "mf/api/info", function( info ) {
+    $.getJSON( "api/mf/info", function( info ) {
         self.data.animal = info;
         self.result(self.templates.animal(info));
     }).fail(this.failure.bind(this));
@@ -408,7 +408,7 @@ muppet_forge.prototype.animal = function(){
 
 muppet_forge.prototype.upstream = function(){
     var self = this;
-    $.getJSON( "mf/api/upstream", function( upstream ) {
+    $.getJSON( "api/mf/upstream", function( upstream ) {
         self.data.upstream = upstream;
         self.result(self.templates.upstream(upstream));
     }).fail(this.failure.bind(this));
@@ -416,13 +416,13 @@ muppet_forge.prototype.upstream = function(){
 
 muppet_forge.prototype.errors = function(){
     var self = this;
-    $.getJSON( "mf/api/errors", function( errors ) {
+    $.getJSON( "api/mf/errors", function( errors ) {
         self.result(self.templates.errors(errors));
     }).fail(this.failure.bind(this));
 }
 muppet_forge.prototype.blacklist = function(){
     var self = this;
-    $.getJSON( "mf/api/blacklist", function( blacklist ) {
+    $.getJSON( "api/mf/blacklist", function( blacklist ) {
         self.data.blacklist = blacklist;
         self.result(self.templates.blacklist(blacklist));
     }).fail(this.failure.bind(this));
@@ -431,7 +431,7 @@ muppet_forge.prototype.blacklist = function(){
 muppet_forge.prototype.modules = function(){
     var qvalue = $('#modules_query').val();
     var self = this;
-    $.getJSON( "mf/modules.json", {q: qvalue}, function( modules ) {
+    $.getJSON( "modules.json", {q: qvalue}, function( modules ) {
         self.data.modules = modules;
         self.result(self.templates.modules(modules));
     }).fail(this.failure.bind(this));
@@ -443,7 +443,7 @@ muppet_forge.prototype.del_release = function(moduleIndex, releaseIndex){
     var version = module.releases[releaseIndex].version
     $.ajax({
         type: "DELETE",
-        url: 'mf/api/'+module.author+'/'+module.name+'/'+version,
+        url: 'api/mf/'+module.author+'/'+module.name+'/'+version,
         success: function(){
             self.modules();
         },
@@ -463,7 +463,7 @@ muppet_forge.prototype.add_blacklist = function(){
     $.ajax({
         type: "PUT",
         dataType: 'json',        
-        url: 'mf/api/blacklist',
+        url: 'api/mf/blacklist',
         contentType: "application/json",
         data: JSON.stringify(this.data.blacklist),
         success: function(){
@@ -479,7 +479,7 @@ muppet_forge.prototype.del_blacklist = function(index){
     $.ajax({
         type: "PUT",
         dataType: 'json',
-        url: 'mf/api/blacklist',
+        url: 'api/mf/blacklist',
         contentType: "application/json",
         data: JSON.stringify(this.data.blacklist),
         success: function(){
@@ -505,7 +505,7 @@ muppet_forge.prototype.add_upstream = function(){
     $.ajax({
         type: "PUT",
         dataType: 'json',
-        url: 'mf/api/upstream',
+        url: 'api/mf/upstream',
         contentType: "application/json",
         data: JSON.stringify(toBeSent),
         success: function(){
@@ -520,7 +520,7 @@ muppet_forge.prototype.del_upstream = function(index){
     $.ajax({
         type: "PUT",
         dataType: 'json',
-        url: 'mf/api/upstream',
+        url: 'api/mf/upstream',
         contentType: "application/json",
         data: JSON.stringify(this.data.upstream),
         success: function(){

@@ -39,6 +39,6 @@ websocket_terminate(_Reason, _ConnState, _State) ->
     ok.
 
 upstream_to_ws_endpoint(<<"https:", Rest/binary>>) ->
-    "wss:" ++ binary_to_list(Rest) ++ "/api/listen";
+    "wss:" ++ binary_to_list(Rest) ++ "/api/mf/listen";
 upstream_to_ws_endpoint(<<"http:", Rest/binary>>) ->
-    "ws:" ++ binary_to_list(Rest) ++ "/api/listen".
+    "ws:" ++ binary_to_list(Rest) ++ "/api/mf/listen".

@@ -11,19 +11,19 @@ start(_StartType, _StartArgs) ->
 
     Dispatcher = cowboy_router:compile([
         {'_', [
-            {"/mf/modules.json", muppet_forge_handler_json, [modules]},
-            {"/mf/api/v1/releases.json", muppet_forge_handler_json, [releases]},
-            {"/mf/api/deploy", muppet_forge_handler_json, [deploy]},
-            {"/mf/api/blacklist", muppet_forge_handler_json, [blacklist]},
-            {"/mf/api/upstream", muppet_forge_handler_json, [upstream]},
-            {"/mf/api/listen", muppet_forge_handler_websocket, undefined},
-            {"/mf/api/errors", muppet_forge_handler_json, [errors]},
-            {"/mf/api/info", muppet_forge_handler_json, [info]},
-            {"/mf/api/:author/:modulename/:version", muppet_forge_handler_json, [release]},
-            {"/mf/:author/:modulename", [{modulename, function, fun module_name/1}], muppet_forge_handler_json, [module]},
-            {"/mf/[...]", muppet_forge_handler_static, [muppet_repository:assets_dir()]},
+            {"/modules.json", muppet_forge_handler_json, [modules]},
+            {"/api/v1/releases.json", muppet_forge_handler_json, [releases]},
+            {"/api/mf/deploy", muppet_forge_handler_json, [deploy]},
+            {"/api/mf/blacklist", muppet_forge_handler_json, [blacklist]},
+            {"/api/mf/upstream", muppet_forge_handler_json, [upstream]},
+            {"/api/mf/listen", muppet_forge_handler_websocket, undefined},
+            {"/api/mf/errors", muppet_forge_handler_json, [errors]},
+            {"/api/mf/info", muppet_forge_handler_json, [info]},
+            {"/api/mf/:author/:modulename/:version", muppet_forge_handler_json, [release]},
+            {"/static/[...]", cowboy_static, {dir, code:priv_dir(muppet_forge) ++ "/static" }},
+            {"/:author/:modulename", [{modulename, function, fun module_name/1}], muppet_forge_handler_json, [module]},
             {"/", cowboy_static,  {file, code:priv_dir(muppet_forge) ++ "/static/index.html"}},
-            {"/[...]", cowboy_static, {dir, code:priv_dir(muppet_forge) ++ "/static" }}
+            {"/[...]", muppet_forge_handler_static, [muppet_repository:assets_dir()]}
         ]}
     ]),
     start_cowboy(Protocol, Port, Acceptors, Dispatcher).

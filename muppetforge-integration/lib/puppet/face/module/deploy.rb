@@ -23,7 +23,7 @@ class Puppet::Forge
   end
 
   def deploy(body_file_location)
-    response = repository.make_http_post("/api/deploy", body_file_location)
+    response = repository.make_http_post("/api/mf/deploy", body_file_location)
     unless response.code == "200"
       raise ResponseError.new(:uri => uri.to_s, :input => "#{body_file_location}", :message => "error", :response => response)
     end
