@@ -16,7 +16,7 @@ init({_, _}, Req, [Atom]) ->
 
 handle(Req, should_auth) ->
     H = muppet_auth:challenge(Req),
-    {ok, Req2} = cowboy_req:reply(401, H ++ ?HEADERS, jiffy:encode(auth_required), Req),
+    {ok, Req2} = cowboy_req:reply(401, H ++ ?HEADERS, jiffy:encode({[{message, auth_required}]}), Req),
     {ok, Req2, undefined};
 
 handle(Req, {module, <<"GET">>}) ->
@@ -34,7 +34,7 @@ handle(Req, {release, <<"DELETE">>}) ->
     {ModuleName, _} = cowboy_req:binding(modulename, Req),
     {Version, _} = cowboy_req:binding(version, Req),
     ok = muppet_repository:delete(Author, ModuleName, versions:version(Version)),
-    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
+    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode({[{message, ok}]}), Req),
     {ok, Req2, undefined};
 
 handle(Req, {modules, <<"GET">>}) ->
@@ -59,7 +59,7 @@ handle(Req, {releases, <<"GET">>}) ->
 handle(Req, {deploy, <<"POST">>}) ->
     {ok, TarballBinary, _} = cowboy_req:body(Req),
     {Code, Resp} = case muppet_repository:store(TarballBinary) of
-        {ok, _ReleaseCoords} ->  {200, ok};
+        {ok, _ReleaseCoords} ->  {200, {[{message, ok}]}};
         {error, Error} -> {500, lists:flatten(io_lib:format("~p", [Error]))}
     end,
     {ok, Req2} = cowboy_req:reply(Code, ?HEADERS, jiffy:encode(Resp), Req),
@@ -76,7 +76,7 @@ handle(Req, {blacklist, <<"PUT">>}) ->
     PropLists = jiffy:decode(BlacklistBinary),
     BlackList = muppet_upstream:proplists_to_blacklist(PropLists),
     ok = muppet_upstream:store_blacklist(BlackList),
-    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
+    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode({[{message, ok}]}), Req),
     {ok, Req2, undefined};
 
 
@@ -88,7 +88,7 @@ handle(Req, {errors, <<"GET">>}) ->
 
 handle(Req, {errors, <<"DELETE">>}) ->
     ok = muppet_upstream:reset_errors(),
-    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
+    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode({[{message, ok}]}), Req),
     {ok, Req2, undefined};
 
 
@@ -109,7 +109,7 @@ handle(Req, {upstream, <<"PUT">>}) ->
         {UpstreamUrl, Observe}
     end, jiffy:decode(Body)),
     ok = muppet_upstream:store_upstream(UpstreamInfos),
-    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(ok), Req),
+    {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode({[{message, ok}]}), Req),
     {ok, Req2, undefined};
 
 handle(Req, {info, <<"GET">>}) ->
@@ -121,7 +121,7 @@ handle(Req, {info, <<"GET">>}) ->
 
 
 handle(Req, {_, Method }) ->
-    {ok, Req2} = cowboy_req:reply(405, ?HEADERS, jiffy:encode([<<"unsupported method">>, Method]), Req),
+    {ok, Req2} = cowboy_req:reply(405, ?HEADERS, jiffy:encode({[{unsupported_method, Method}]}), Req),
     {ok, Req2, undefined}.
 
 

@@ -342,7 +342,19 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
     </div>
     {{/each}}    
 </script>
-
+<script id="failure-template" type="text/x-handlebars-template">
+  <div class="panel panel-danger">
+    <div class="panel-heading">An error occurred</div>
+    <div class="panel-body">
+      <dl class="dl-horizontal">
+        <dt>Error Code</dt><dd>{{status}}</dd>
+        {{#each value}}
+        <dt>{{@key}}</dt><dd>{{this}}</dd>      
+        {{/each}}
+      </dl>
+    </div>
+  </div>
+</script>
 <script src="js/jquery-2.0.3.min.js"></script>    
 <script src="js/handlebars-v1.1.2.js"></script>
 <script src="js/bootstrap.min.js"></script>
@@ -362,6 +374,7 @@ function muppet_forge(){
     this.templates = {}
     this.data = {}
     this.templates.info = Handlebars.compile($("#info-template").html())
+    this.templates.failure = Handlebars.compile($("#failure-template").html())
     this.templates.animal = Handlebars.compile($("#animal-template").html())
     this.templates.errors = Handlebars.compile($("#errors-template").html())
     this.templates.upstream = Handlebars.compile($("#upstream-template").html())
@@ -369,6 +382,13 @@ function muppet_forge(){
     this.templates.modules = Handlebars.compile($("#modules-template").html())
 }
 
+
+muppet_forge.prototype.failure = function(response){
+    this.result(this.templates.failure({
+        status: response.status,
+        value: JSON.parse(response.responseText)
+    }));
+}
 
 muppet_forge.prototype.result = function(content){
     $('#results').html(content);
@@ -383,7 +403,7 @@ muppet_forge.prototype.animal = function(){
     $.getJSON( "mf/api/info", function( info ) {
         self.data.animal = info;
         self.result(self.templates.animal(info));
-    });
+    }).fail(this.failure.bind(this));
 }
 
 muppet_forge.prototype.upstream = function(){
@@ -391,21 +411,21 @@ muppet_forge.prototype.upstream = function(){
     $.getJSON( "mf/api/upstream", function( upstream ) {
         self.data.upstream = upstream;
         self.result(self.templates.upstream(upstream));
-    });
+    }).fail(this.failure.bind(this));
 }
 
 muppet_forge.prototype.errors = function(){
     var self = this;
     $.getJSON( "mf/api/errors", function( errors ) {
         self.result(self.templates.errors(errors));
-    });    
+    }).fail(this.failure.bind(this));
 }
 muppet_forge.prototype.blacklist = function(){
     var self = this;
     $.getJSON( "mf/api/blacklist", function( blacklist ) {
         self.data.blacklist = blacklist;
         self.result(self.templates.blacklist(blacklist));
-    });    
+    }).fail(this.failure.bind(this));
 }
 
 muppet_forge.prototype.modules = function(){
@@ -414,7 +434,7 @@ muppet_forge.prototype.modules = function(){
     $.getJSON( "mf/modules.json", {q: qvalue}, function( modules ) {
         self.data.modules = modules;
         self.result(self.templates.modules(modules));
-    });    
+    }).fail(this.failure.bind(this));
 }
 
 muppet_forge.prototype.del_release = function(moduleIndex, releaseIndex){
@@ -426,7 +446,8 @@ muppet_forge.prototype.del_release = function(moduleIndex, releaseIndex){
         url: 'mf/api/'+module.author+'/'+module.name+'/'+version,
         success: function(){
             self.modules();
-        }
+        },
+        failure: this.failure.bind(this)      
     })
 }
 
@@ -447,7 +468,8 @@ muppet_forge.prototype.add_blacklist = function(){
         data: JSON.stringify(this.data.blacklist),
         success: function(){
             self.result(self.templates.blacklist(self.data.blacklist));
-        }
+        },
+        failure: this.failure.bind(this)        
     })
 }
 
@@ -462,7 +484,8 @@ muppet_forge.prototype.del_blacklist = function(index){
         data: JSON.stringify(this.data.blacklist),
         success: function(){
             self.result(self.templates.blacklist(self.data.blacklist));
-        }
+        },
+        failure: this.failure.bind(this)
     })
 }
 
@@ -487,7 +510,8 @@ muppet_forge.prototype.add_upstream = function(){
         data: JSON.stringify(toBeSent),
         success: function(){
             self.result(self.templates.upstream(self.data.upstream));
-        }
+        },
+        failure: this.failure.bind(this)
     })
 }
 muppet_forge.prototype.del_upstream = function(index){
@@ -501,7 +525,8 @@ muppet_forge.prototype.del_upstream = function(index){
         data: JSON.stringify(this.data.upstream),
         success: function(){
             self.result(self.templates.upstream(self.data.upstream));
-        }
+        },
+        failure: this.failure.bind(this)        
     })
 }
 
