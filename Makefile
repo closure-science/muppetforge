@@ -16,7 +16,6 @@
 #
 
 ERLFLAGS= -pa $(CURDIR)/.eunit -pa $(CURDIR)/apps/*/ebin -pa $(CURDIR)/deps/*/ebin
-
 DEPS_PLT=$(CURDIR)/.deps_plt
 DEPS=erts kernel stdlib ssh crypto public_key inets eldap
 
@@ -36,10 +35,17 @@ ifeq ($(REBAR),)
 $(error "Rebar not available on this system")
 endif
 
-.PHONY: all compile doc clean test dialyzer typer shell distclean pdf \
-  update-deps clean-common-test-data rebuild release start console
+PUPPET=$(shell which puppet)
 
-all: deps compile dialyzer test
+ifeq ($(PUPPET),)
+$(error "Puppet not available on this system")
+endif
+
+
+.PHONY: all compile doc clean test dialyzer typer shell distclean pdf \
+  update-deps clean-common-test-data rebuild release start console puppetmodule
+
+all: deps compile dialyzer test puppetmodule
 
 # =============================================================================
 # Rules to build the system
@@ -74,7 +80,7 @@ dialyzer: $(DEPS_PLT)
 	dialyzer --fullpath --plt $(DEPS_PLT) -Wrace_conditions -r apps/*/ebin
 
 typer:
-	typer --plt $(DEPS_PLT) -r ./src
+	typer --plt $(DEPS_PLT) -r apps/*/src
 
 shell: deps compile
 # You often want *rebuilt* rebar tests to be available to the
@@ -99,7 +105,7 @@ distclean: clean
 	- rm -rf $(DEPS_PLT)
 	- rm -rvf $(CURDIR)/deps
 
-rebuild: distclean deps compile escript dialyzer test
+rebuild: distclean deps compile escript dialyzer test puppetmodule
 
 
 release:
