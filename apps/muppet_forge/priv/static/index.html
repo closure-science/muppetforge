@@ -394,9 +394,12 @@ function muppet_forge(){
 
 
 muppet_forge.prototype.failure = function(response){
+    function jsonTryParse(txt) {
+      try{ return JSON.parse(txt); }catch(ex){ return txt ? {message: txt} : {}; }
+    }
     this.result(this.templates.failure({
         status: response.status,
-        value: JSON.parse(response.responseText)
+        value: jsonTryParse(response.responseText)
     }));
 }
 
@@ -540,8 +543,12 @@ muppet_forge.prototype.del_upstream = function(index){
     })
 }
 
-muppet_forge.prototype.change_hash = function(newHash){
-    document.location.hash = newHash
+muppet_forge.prototype.change_hash_or_rerender = function(newHash){
+    if(document.location.hash == newHash){
+      this.render_hash(newHash);
+    }else {
+      document.location.hash = newHash
+    }
 }
 
 muppet_forge.prototype.render_hash = function(newHash){
@@ -557,16 +564,16 @@ var mf = null;
 
 $(document).ready(function(){
     mf = new muppet_forge();
-    $('#info_button').click(mf.change_hash.bind(this, 'info'));
-    $('#animal_button').click(mf.change_hash.bind(this, 'animal'));
-    $('#errors_button').click(mf.change_hash.bind(this, 'errors'));
-    $('#upstream_button').click(mf.change_hash.bind(this, 'upstream'));
-    $('#blacklist_button').click(mf.change_hash.bind(this, 'blacklist'));
+    $('#info_button').click(mf.change_hash_or_rerender.bind(mf, '#info'));
+    $('#animal_button').click(mf.change_hash_or_rerender.bind(mf, '#animal'));
+    $('#errors_button').click(mf.change_hash_or_rerender.bind(mf, '#errors'));
+    $('#upstream_button').click(mf.change_hash_or_rerender.bind(mf, '#upstream'));
+    $('#blacklist_button').click(mf.change_hash_or_rerender.bind(mf, '#blacklist'));
     $('#modules_query').keypress(function (e) {
         if (e.which !== 13) return;
         mf.modules()
     })
-    $('#modules_button').click(mf.change_hash.bind(this, 'modules'));
+    $('#modules_button').click(mf.change_hash_or_rerender.bind(mf, '#modules'));
     window.onhashchange = mf.render_hash.bind(mf);
     mf.render_hash();
 })
