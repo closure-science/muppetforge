@@ -1,4 +1,4 @@
--module(muppet_upstream_observer_ws_client).
+-module(muppet_upstream_fcn_listener).
 -behaviour(websocket_client_handler).
 -export([init/2, websocket_handle/3, websocket_info/3, websocket_terminate/3]).
 -export([start_link/1, close/1]).
@@ -8,7 +8,8 @@
 start_link(Upstream) when is_list(Upstream) ->
     start_link(list_to_binary(Upstream));
 start_link(Upstream) ->
-    Endpoint = upstream_to_ws_endpoint(Upstream),
+    <<"http", Rest/binary>> = Upstream,
+    Endpoint = "ws" ++ binary_to_list(Rest) ++ "/api/mf/listen",
     websocket_client:start_link(Endpoint, ?MODULE, [self(), Upstream]).
 
 close(Pid) ->
@@ -37,8 +38,3 @@ websocket_info(_Any, _ConnState, State) ->
 
 websocket_terminate(_Reason, _ConnState, _State) ->
     ok.
-
-upstream_to_ws_endpoint(<<"https:", Rest/binary>>) ->
-    "wss:" ++ binary_to_list(Rest) ++ "/api/mf/listen";
-upstream_to_ws_endpoint(<<"http:", Rest/binary>>) ->
-    "ws:" ++ binary_to_list(Rest) ++ "/api/mf/listen".

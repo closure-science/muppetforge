@@ -45,7 +45,7 @@ endif
 .PHONY: all compile doc clean test dialyzer typer shell distclean pdf \
   update-deps clean-common-test-data rebuild release start console puppetmodule
 
-all: deps compile dialyzer test puppetmodule
+all: deps compile dialyzer test puppetmodule release
 
 # =============================================================================
 # Rules to build the system
@@ -110,6 +110,8 @@ rebuild: distclean deps compile escript dialyzer test puppetmodule
 
 release:
 	$(REBAR) generate	
+tarball: release
+	@cd rel; tar cvfz muppetforge.tar.gz muppetforge_node
 start:
 	rel/$(NODE)/bin/$(NODE) start
 console:
