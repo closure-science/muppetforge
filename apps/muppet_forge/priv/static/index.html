@@ -540,22 +540,35 @@ muppet_forge.prototype.del_upstream = function(index){
     })
 }
 
+muppet_forge.prototype.change_hash = function(newHash){
+    document.location.hash = newHash
+}
+
+muppet_forge.prototype.render_hash = function(newHash){
+    var dlh = document.location.hash;
+    var fnName = dlh && dlh != '#' ? dlh.slice(1) : 'animal';
+    if(mf[fnName]) {
+      mf[fnName].call(mf);
+    }
+}
+
 
 var mf = null;
 
 $(document).ready(function(){
     mf = new muppet_forge();
-    $('#info_button').click(mf.info.bind(mf));
-    $('#animal_button').click(mf.animal.bind(mf));
-    $('#errors_button').click(mf.errors.bind(mf));
-    $('#upstream_button').click(mf.upstream.bind(mf));
-    $('#blacklist_button').click(mf.blacklist.bind(mf));
+    $('#info_button').click(mf.change_hash.bind(this, 'info'));
+    $('#animal_button').click(mf.change_hash.bind(this, 'animal'));
+    $('#errors_button').click(mf.change_hash.bind(this, 'errors'));
+    $('#upstream_button').click(mf.change_hash.bind(this, 'upstream'));
+    $('#blacklist_button').click(mf.change_hash.bind(this, 'blacklist'));
     $('#modules_query').keypress(function (e) {
         if (e.which !== 13) return;
-        mf.modules();
+        mf.modules()
     })
-    $('#modules_button').click(mf.modules.bind(mf));
-    mf.animal();
+    $('#modules_button').click(mf.change_hash.bind(this, 'modules'));
+    window.onhashchange = mf.render_hash.bind(mf);
+    mf.render_hash();
 })
 
 
