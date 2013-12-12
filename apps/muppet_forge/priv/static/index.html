@@ -77,8 +77,9 @@
     It contais the <code>deploy</code> action for the Puppet module tool, and the <code>require_module</code> function.
 
     <h2>Configuring an upstream forge</h2>
-    Muppet Forge can be configured to mirror and automatically keep in sync with another Forge.
-    Just add a Forge URL in the "Upstream" panel: Muppet Forge will periodically check for and mirror new releases.
+    Muppet Forge can be configured to mirror and automatically keep in sync with another forge by adding a Forge URL in the "Upstream" panel.
+    Muppet Forge will periodically check for and mirror new releases. When Mirroring from another Muppet Forge instance, fast change notification can
+    be enabled to speed up synchronization of new releases. 
 
     <h4>Blacklisting modules</h4>
     Unwanted packages can be excluded from mirroring from an upstream forge by configuring a blacklist entry matching the module.
