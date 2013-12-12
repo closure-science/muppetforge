@@ -200,7 +200,7 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
         <div class="col-md-4">
             <div class="panel panel-info">
                 <div class="panel-heading">Mirroring Job Status</div>
-                <div class="panel-body">Retrieval of {{tbd}} modules pending, {{errors}} errors.</div>
+                <div class="panel-body">Retrieval of {{tbd}} releases pending, {{errors}} errors.</div>
             </div>
         </div>
     </div>
@@ -256,11 +256,17 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
     {{/unless}}
     {{#each this}}
     <div class="panel panel-primary">
-        <div class="panel-body" style="line-height: 24px">
-            {{base_url}} <span class="text-muted">Last updated: {{ts_as_date_string_or_never time}}</span> {{#if observe }} <span class="label label-primary pull-right">Observing</span> {{/if}}
+        <div class="panel-heading">
+            <span>Last updated: {{ts_as_date_string_or_never time}}</span>
             <button type="button" class="btn btn-default btn-sm pull-right" onclick="mf.del_upstream({{@index}})">
-              <span class="glyphicon glyphicon-remove"></span>
+                  <span class="glyphicon glyphicon-remove"></span>
             </button>
+        </div>
+        <div class="panel-body">
+            {{base_url}}
+        </div>
+        <div class="panel-footer">
+            {{#if observe }} <span class="label label-primary">Observing</span> {{/if}}
         </div>
     </div>
     {{/each}}    
@@ -298,16 +304,21 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
     {{/unless}}
     {{#each this}}
     <div class="panel panel-warning">
-        <div class="panel-body">
+        <div class="panel-heading">
+            &nbsp;
             <button type="button" class="btn btn-default btn-sm pull-right" onclick="mf.del_blacklist({{@index}})">
               <span class="glyphicon glyphicon-remove"></span>
             </button>
+        </div>
+        <div class="panel-body">
             <dl class="dl-horizontal">
                 <dt>Upstream</dt><dd>{{upstream}}{{#unless upstream}}<span class="text-muted">any</span>{{/unless}}</dd>
                 <dt>Author</dt><dd>{{author}}{{#unless author}}<span class="text-muted">any</span>{{/unless}}</dd>
                 <dt>Module</dt><dd>{{module}}{{#unless module}}<span class="text-muted">any</span>{{/unless}}</dd>
                 <dt>Version</dt><dd>{{version}}{{#unless version}}<span class="text-muted">any</span>{{/unless}}</dd>
             </dl>
+        </div>
+        <div class="panel-footer">
         </div>
     </div>
     {{/each}}    
