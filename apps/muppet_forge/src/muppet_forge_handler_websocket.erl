@@ -6,8 +6,11 @@
 -record(state, { handler_ref }).
 
  
-init({_, _}, _Req, _Opts) ->
-    {upgrade, protocol, cowboy_websocket}.
+init({_, _}, Req, _Opts) ->
+    case muppet_auth:is_authorized(Req) of
+        false ->  {shutdown, Req};
+        true -> {upgrade, protocol, cowboy_websocket}
+    end.
  
 websocket_init(_Transport, Req, _Opts) ->
     HandlerRef = make_ref(),
