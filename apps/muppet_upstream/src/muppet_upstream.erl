@@ -76,7 +76,7 @@ init([]) ->
     Retards = dets_value(storage, retards, []),
     UpstreamDefinitions = dets_value(storage, upstream, []),
     NewUpstreams = upstream_from_definitions(UpstreamDefinitions),
-    ok = observe_marked_upstreams(NewUpstreams),
+    ok = reset_listeners(NewUpstreams),
     process_flag(trap_exit, true),
     self() ! tick,
     {ok, #state{upstream = NewUpstreams, retards = Retards}}.
@@ -85,7 +85,7 @@ handle_cast({store_upstream, UpstreamDefinitions}, State) ->
     NewUpstream = upstream_from_definitions(UpstreamDefinitions),
     ok = dets:insert(storage, {upstream, UpstreamDefinitions}),
     ok = dets:sync(storage),
-    observe_marked_upstreams(NewUpstream),
+    reset_listeners(NewUpstream),
     {noreply, State#state{ upstream = NewUpstream, tbd = dict:new(), errors = dict:new() }};
 handle_cast({store_blacklist, Retards}, State) ->
     ok = dets:insert(storage, {retards, Retards}),
@@ -211,12 +211,12 @@ refresh_upstream(Parent, Now, UpstreamBaseUrl, UseFastChangeNotification) ->
         T:R -> Parent ! {upstream_failed, UseFastChangeNotification, Now, UpstreamBaseUrl, T, R}
     end.
 
-observe_marked_upstreams(Upstreams) ->
+reset_listeners(Upstreams) ->
     UpstreamsWithFastChangeNotification = dict:fold(fun
         (_BaseUrl, {false, _At}, Acc) -> Acc;
         (BaseUrl, {true, _At}, Acc) -> [BaseUrl|Acc]
     end,[] , Upstreams),
-    muppet_upstream_observer:set_observed(UpstreamsWithFastChangeNotification).
+    muppet_upstream_fcn:reset_listeners(UpstreamsWithFastChangeNotification).
 
 
 new_tbd(VersionsFromUpstream, State) ->

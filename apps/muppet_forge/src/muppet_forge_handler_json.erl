@@ -96,7 +96,7 @@ handle(Req, {upstream, <<"GET">>}) ->
     UpstreamDict = muppet_upstream:fetch_upstream(),
     Serializable = lists:map(fun({BaseUrl, {UseFastChangeNotification, Time}}) ->
         TimeMillis = timer:now_diff(Time, {0,0,0}) div 1000,
-        {[ {base_url, BaseUrl}, {observe, UseFastChangeNotification}, {time, TimeMillis} ]}
+        {[ {base_url, BaseUrl}, {use_fast_change_notification, UseFastChangeNotification}, {time, TimeMillis} ]}
     end, dict:to_list(UpstreamDict)),
     {ok, Req2} = cowboy_req:reply(200, ?HEADERS, jiffy:encode(Serializable), Req),
     {ok, Req2, undefined};
@@ -104,7 +104,7 @@ handle(Req, {upstream, <<"GET">>}) ->
 handle(Req, {upstream, <<"PUT">>}) ->
     {ok, Body, _} = cowboy_req:body(Req),
     UpstreamInfos = lists:map(fun({UpstreamInfo}) -> 
-        UseFastChangeNotification = proplists:get_value(<<"observe">>, UpstreamInfo, false),
+        UseFastChangeNotification = proplists:get_value(<<"use_fast_change_notification">>, UpstreamInfo, false),
         {_, UpstreamUrl} = proplists:lookup(<<"base_url">>, UpstreamInfo),
         {UpstreamUrl, UseFastChangeNotification}
     end, jiffy:decode(Body)),
