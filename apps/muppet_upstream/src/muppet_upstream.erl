@@ -119,8 +119,8 @@ handle_info(tick, State) ->
     ThisPid = self(),
     {Now, ExpiredUpstream} = upstream_to_be_refreshed(State),
     Pids = case ExpiredUpstream of
-        [{UpstreamBaseUrl, Observe}| _] -> 
-            Pid = spawn_link(fun() -> refresh_upstream(ThisPid, Now, UpstreamBaseUrl, Observe) end),
+        [{UpstreamBaseUrl, UseFastChangeNotification}| _] -> 
+            Pid = spawn_link(fun() -> refresh_upstream(ThisPid, Now, UpstreamBaseUrl, UseFastChangeNotification) end),
             [Pid];
         [] -> 
             case dict:fetch_keys(State#state.tbd) of
@@ -135,13 +135,13 @@ handle_info(tick, State) ->
     end,
     {noreply, State#state{ pids = sets:union(sets:from_list(Pids), State#state.pids)}};
 
-handle_info({upstream_metadata, Observe, At, UpstreamBaseUrl, VersionsFromUpstream}, State) ->
+handle_info({upstream_metadata, UseFastChangeNotification, At, UpstreamBaseUrl, VersionsFromUpstream}, State) ->
     NewTbd = new_tbd(VersionsFromUpstream, State),
-    NewUpstream = dict:store(UpstreamBaseUrl, {Observe, At}, State#state.upstream),
+    NewUpstream = dict:store(UpstreamBaseUrl, {UseFastChangeNotification, At}, State#state.upstream),
     {noreply, State#state{ upstream = NewUpstream, tbd=NewTbd }};
 
-handle_info({upstream_failed, Observe, At, UpstreamBaseUrl, _ErrorType, _Reason}, State) ->
-    NewUpstream = dict:store(UpstreamBaseUrl, {Observe, At}, State#state.upstream),
+handle_info({upstream_failed, UseFastChangeNotification, At, UpstreamBaseUrl, _ErrorType, _Reason}, State) ->
+    NewUpstream = dict:store(UpstreamBaseUrl, {UseFastChangeNotification, At}, State#state.upstream),
     {noreply, State#state{ upstream = NewUpstream }};
 
 handle_info({tarball_done, _At, _BaseUrl, AuthorAndModule, Version}, State) ->
@@ -177,7 +177,7 @@ terminate(_Reason, _State) ->
     ok.
 
 upstream_from_definitions(UpstreamDefinitions) ->
-    dict:from_list([{BaseUrl, {Observe, {0,0,0}}} || {BaseUrl, Observe} <- UpstreamDefinitions]).
+    dict:from_list([{BaseUrl, {UseFastChangeNotification, {0,0,0}}} || {BaseUrl, UseFastChangeNotification} <- UpstreamDefinitions]).
 
 dets_value(Name, Key, Default) ->
     case dets:lookup(Name, Key) of
@@ -197,7 +197,7 @@ blacklisted({BlBaseUrl, BlAuthor, BlModule, BlVersion}, {BaseUrl, Author, Module
 bl(null, _El) -> true;        
 bl(BlEl, El) -> BlEl =:= El.
 
-refresh_upstream(Parent, Now, UpstreamBaseUrl, Observe) ->
+refresh_upstream(Parent, Now, UpstreamBaseUrl, UseFastChangeNotification) ->
     try
         {ok, {{_, 200, _}, _Headers, Body}} = httpc:request(binary_to_list(UpstreamBaseUrl) ++ "/modules.json"),
         DecodedModules = jiffy:decode(Body),
@@ -206,17 +206,17 @@ refresh_upstream(Parent, Now, UpstreamBaseUrl, Observe) ->
             Releases = proplists:get_value(<<"releases">>, M),
             [{UpstreamBaseUrl, {AuthorAndModule, versions:version(proplists:get_value(<<"version">>, R)) }} || {R} <- Releases]
         end, DecodedModules),
-        Parent ! {upstream_metadata, Observe, Now, UpstreamBaseUrl, VersionsFromUpstream }
+        Parent ! {upstream_metadata, UseFastChangeNotification, Now, UpstreamBaseUrl, VersionsFromUpstream }
     catch 
-        T:R -> Parent ! {upstream_failed, Observe, Now, UpstreamBaseUrl, T, R}
+        T:R -> Parent ! {upstream_failed, UseFastChangeNotification, Now, UpstreamBaseUrl, T, R}
     end.
 
 observe_marked_upstreams(Upstreams) ->
-    UpstreamsToObserve = dict:fold(fun
+    UpstreamsWithFastChangeNotification = dict:fold(fun
         (_BaseUrl, {false, _At}, Acc) -> Acc;
         (BaseUrl, {true, _At}, Acc) -> [BaseUrl|Acc]
     end,[] , Upstreams),
-    muppet_upstream_observer:set_observed(UpstreamsToObserve).
+    muppet_upstream_observer:set_observed(UpstreamsWithFastChangeNotification).
 
 
 new_tbd(VersionsFromUpstream, State) ->
@@ -241,11 +241,11 @@ fetch_and_store_tarball(Parent, Now, BaseUrl, AuthorAndModule, Version) ->
 
 upstream_to_be_refreshed(State) ->
     Now = now(),
-    Expired = dict:filter(fun(_UpstreamUrl, {_Observe, RefreshedAt}) ->
+    Expired = dict:filter(fun(_UpstreamUrl, {_UseFastChangeNotification, RefreshedAt}) ->
         timer:now_diff(Now, RefreshedAt) > ?REFRESH_INTERVAL_MICROS
     end, State#state.upstream),
-    {Now, lists:map(fun({Url, {Observe, _At}}) -> 
-        {Url, Observe} 
+    {Now, lists:map(fun({Url, {UseFastChangeNotification, _At}}) -> 
+        {Url, UseFastChangeNotification} 
     end, dict:to_list(Expired))}.
 
 fetch_tarball_binary(BaseUrl, {Author, Module}, Version) ->
