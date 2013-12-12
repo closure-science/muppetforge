@@ -32,7 +32,7 @@ is_auth([Spec|Rest], Ip) ->
     end.
 
 %% @private
-in_whitelist({Size, Prefix} = Spec, Peer) ->
+in_whitelist({_Size, Prefix} = Spec, Peer) ->
     Spec =:= cidr_to_prefix(Peer, bit_size(Prefix)).
 
 %% @private

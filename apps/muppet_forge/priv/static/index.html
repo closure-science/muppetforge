@@ -250,8 +250,11 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
                 <input type="url" class="form-control" id="upstream-base-url-field" placeholder="New Upstream Url..." required>
               </div>
               <div class="form-group">
-                <label for="upstream-observe-field">Observe</label>
-                <input type="checkbox" class="form-control" id="upstream-observe-field">
+                <label class="sr-only" for="upstream-observe-field">Fast change notification</label>
+                <select class="form-control" id="upstream-observe-field">
+                  <option value="false">Polling only</option>
+                  <option value="true">Polling + Fast change notification (muppetforge only)</option>
+                </select>
               </div>
               <button id="add_upstream_button" type="submit" class="btn btn-default">Add</button>
             </form>
@@ -274,7 +277,8 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
             {{base_url}}
         </div>
         <div class="panel-footer">
-            {{#if observe }} <span class="label label-primary">Observing</span> {{/if}}
+            <span class="label label-primary">Polling</span>        
+            {{#if observe }} <span class="label label-primary">Fast change notification</span> {{/if}}
         </div>
     </div>
     {{/each}}    
@@ -525,7 +529,7 @@ muppet_forge.prototype.add_upstream = function(){
     var self = this;
     var newUpstream = {
       base_url : $('#upstream-base-url-field').val(),
-      observe : $('#upstream-observe-field').is(':checked'),
+      observe : $('#upstream-observe-field').val() === 'true',
       time: 0
     };
     this.data.upstream.push(newUpstream);
