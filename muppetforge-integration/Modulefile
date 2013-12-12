@@ -1,5 +1,5 @@
 name    'muppetforge-integration'
-version '0.0.2-SNAPSHOT'
+version '1.0.0'
 source 'TODO hg revision here'
 author 'muppetforge'
 license 'BSD3 http://opensource.org/licenses/BSD-3-Clause'
