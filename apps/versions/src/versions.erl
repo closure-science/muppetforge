@@ -1,5 +1,5 @@
 -module(versions).
--export([constraints/1, matches/2, max/2, version/1, to_binary/1, to_string/1]).
+-export([constraints/1, matches/2, max/2, min/2, compare/3, version/1, to_binary/1, to_string/1]).
 
 
 -type version_type() :: {Major::integer(), Minor::integer(), Patch::integer(), Special::binary() }.
@@ -61,6 +61,13 @@ max(Lhs, Rhs) ->
         _ -> Rhs
     end.
 
+-spec min( version_type(), version_type()) -> version_type().
+min(Lhs, Rhs) ->
+    case compare(lte, Lhs, Rhs) of
+        true -> Lhs;
+        _ -> Rhs
+    end.
+
 -spec matches( [constraint_type()], version_type()) -> boolean().
 matches([], _Version) ->
     true;
@@ -88,6 +95,7 @@ match({lt, {_Major, _Minor, _Patch, <<>>} = HayStack}, {NeedleMajor, NeedleMinor
 match({Op, HayStack}, Needle) ->
     compare(Op, Needle, HayStack).
 
+-spec compare(atom(), version_type(), version_type()) -> boolean().
 compare(eq, Version1, Version2) ->
     Version1 =:= Version2;
 compare(gt, {LhsMajor, LhsMinor, LhsPatch, LhsSpecial}, {RhsMajor, RhsMinor, RhsPatch, RhsSpecial}) ->

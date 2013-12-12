@@ -115,7 +115,7 @@ handle_call(info, From, State) ->
         {Modules, Releases} = muppet_driver:info(State),
         [{modules, Modules}, {releases, Releases}]
     end);
-handle_call(Msg, From, State) ->
+handle_call(_Msg, _From, State) ->
     {reply, {error, badreqeust}, State}.
 
 handle_info(_Info, State) ->

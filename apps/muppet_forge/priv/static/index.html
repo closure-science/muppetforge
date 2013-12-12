@@ -325,7 +325,10 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
     <div class="panel panel-success">
         <div class="panel-heading">{{full_name}}</div>
         <div class="panel-body">
-            {{desc}} 
+            {{desc}}
+            {{#unless desc}} 
+              <span class="text-muted">No description given</span>
+            {{/unless}}
             <div style="margin-top: 5px">
             {{setIndex @index}}
             {{#each releases}}
@@ -338,7 +341,14 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
             {{/each}}
             </div>
         </div>
-        <div class="panel-footer"><a href="{{project_url}}">{{project_url}}</a></div>
+        <div class="panel-footer">
+            {{#if project_url}}
+              <a href="{{project_url}}">{{project_url}}</a>
+            {{/if}}
+            {{#unless project_url}} 
+              <span class="text-muted">No project URL given</span>
+            {{/unless}}
+        </div>
     </div>
     {{/each}}    
 </script>

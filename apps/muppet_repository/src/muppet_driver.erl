@@ -125,13 +125,18 @@ store(Modules, AssetsDir, Tarball) ->
 merge_into_modules(Module, Modules) ->
     case lists:keyfind(Module#module.full_name, 2, Modules) of
         false ->
-            [Module| Modules];
+            lists:sort(fun(Lhs, Rhs) -> 
+                {Lhs#module.author, Lhs#module.name} =< {Rhs#module.author, Rhs#module.name}
+            end, [Module| Modules]);
         MatchedModule -> 
                 NewReleases = Module#module.releases,
-                PurgedOldModules = lists:foldl(fun(NewRel, Acc) -> 
+                PurgedOldReleases = lists:foldl(fun(NewRel, Acc) -> 
                     lists:keydelete(NewRel#release.version, 2, Acc) 
                 end, MatchedModule#module.releases, NewReleases),
-                NewModule = MatchedModule#module{ releases = NewReleases ++ PurgedOldModules},
+                SortedReleases = lists:sort(fun(Lhs, Rhs) -> 
+                    versions:compare(lte, Lhs#release.version, Rhs#release.version)
+                end, NewReleases ++ PurgedOldReleases),
+                NewModule = MatchedModule#module{ releases = SortedReleases},
                 lists:keyreplace(Module#module.full_name, 2, Modules, NewModule)
     end.
 
@@ -141,6 +146,8 @@ merge_into_modules(Module, Modules) ->
 % -----------------------------------------------------------------------------
 search(Modules, Terms) ->
     search(Modules, Terms,[]).
+
+% @private    
 search(Modules, [], _) ->
     Modules;
 search([], _Terms, Matching) ->
@@ -183,11 +190,17 @@ read_metadata(File) ->
         author = Author,
         name = Name,
         full_name = ?FULL_NAME(Author, Name),
-        desc = proplists:get_value(<<"summary">>, Decoded),
-        project_url = proplists:get_value(<<"project_page">>, Decoded),
+        desc = unknown_to_null(proplists:get_value(<<"summary">>, Decoded, null)),
+        project_url = unknown_to_null(proplists:get_value(<<"project_page">>, Decoded, null)),
         releases = [#release{version=Version, file=FileName, dependencies=Dependencies}],
         tag_list = [] % TODO: not in metadata, should be added to the post request. or /cares.
     }.
+
+unknown_to_null(V) ->
+    case V of
+        <<"UNKNOWN">> -> null;
+        _ -> V
+    end.
 
 find_metadata_file_in_tarball(File) ->
     {ok, FileNamesInTar} = erl_tar:table(File, [compressed]),
