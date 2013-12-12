@@ -65,7 +65,6 @@ module Puppet::ModuleTool
         results
       end
 
-      # TODO: better.
       def is_module_package?(name)
         filename = File.expand_path(name)
         filename =~ /.tar.gz$/
@@ -99,6 +98,15 @@ Puppet::Face.define(:module, '1.0.0') do
       deployer = Puppet::ModuleTool::Applications::Deployer.new(tarball, forge, options)
       
       deployer.run
+    end
+
+    when_rendering :console do |return_value, name, options|
+      if return_value[:result] == :failure
+        Puppet.err(return_value[:error][:multiline])
+        exit 1
+      else
+        "Module succesfully deployed."
+      end
     end
 
   end
