@@ -398,7 +398,15 @@ Handlebars.registerHelper('ts_as_date_string_or_never', function(timestamp) {
     return timestamp !== 0 ? new Date(timestamp).toISOString() : 'never';
 });    
 Handlebars.registerHelper('ts_as_date_string', function(timestamp) {
-    return new Date(timestamp).toISOString();
+    function zf(v){ return v > 9 ? ''+v : '0'+v; }
+    var date = new Date(timestamp);
+    var Y = date.getFullYear();
+    var M = date.getMonth() + 1;
+    var D = date.getDate();
+    var h = date.getHours();
+    var m = date.getMinutes();
+    var s = date.getSeconds();
+    return Y +'-'+ zf(M) +'-'+ zf(D) +' '+ zf(h) +':'+ zf(m) +':'+ zf(s); 
 });    
 Handlebars.registerHelper('setIndex', function(value){
     this.index = +value;
