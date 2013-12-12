@@ -114,7 +114,9 @@ handle_call(info, From, State) ->
     async_(From, State, fun() ->
         {Modules, Releases} = muppet_driver:info(State),
         [{modules, Modules}, {releases, Releases}]
-    end).
+    end);
+handle_call(Msg, From, State) ->
+    {reply, {error, badreqeust}, State}.
 
 handle_info(_Info, State) ->
     {noreply, State}.
