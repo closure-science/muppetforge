@@ -50,28 +50,30 @@ find_release(Modules, Author, Name, Constraints) ->
     FullName = ?FULL_NAME(Author, Name),
     case lists:keyfind(FullName, 2, Modules) of
         false -> {not_found, FullName};
-        _ -> {ok, find_release(Modules, [{?FULL_NAME(Author, Name), Constraints}], dict:new())}
+        _ -> {ok, find_release_(Modules, [{?FULL_NAME(Author, Name), Constraints}], dict:new(), sets:new())}
     end.
 
-find_release(_Modules, [], Dict) ->
+find_release_(_Modules, [], Dict, _SeenDeps) ->
     Dict;
-find_release(Modules, [{FullName, VersionConstraints}|Others], Dict) ->
+find_release_(Modules, [{FullName, VersionConstraints}|Others], Dict, SeenDeps) ->
     Dict2 = case dict:is_key(FullName, Dict) of 
         false -> dict:store(FullName, sets:new(), Dict);
         _ -> Dict
     end,
     case find(Modules, FullName) of 
         {false, FullName} -> 
-            find_release(Modules, Others, Dict2);
+            find_release_(Modules, Others, Dict2, SeenDeps);
         {true, Module} -> 
             ViableReleases = sets:from_list(lists:filter(fun(R) -> 
                 versions:matches(VersionConstraints, R#release.version)
             end, Module#module.releases)),
             NewSet = sets:union(ViableReleases, dict:fetch(FullName, Dict2)),
             Dict3 = dict:store(FullName, NewSet, Dict2),
-            NewDependencies = sets:from_list(lists:append([V#release.dependencies || V <- sets:to_list(ViableReleases)])),
-            NewQueue = sets:to_list(sets:union(NewDependencies,sets:from_list(Others))),
-            find_release(Modules, NewQueue, Dict3)
+            DeclaredDependencies = sets:from_list(lists:append([V#release.dependencies || V <- sets:to_list(ViableReleases)])),
+            NewDependencies = sets:subtract(DeclaredDependencies, SeenDeps),
+            NewSeenDeps = sets:union(SeenDeps, NewDependencies),
+            NewQueue = sets:to_list(sets:union(NewDependencies, sets:from_list(Others))),
+            find_release_(Modules, NewQueue, Dict3, NewSeenDeps)
     end.
 
 
