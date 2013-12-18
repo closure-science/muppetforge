@@ -1,3 +1,8 @@
+Build Status 
+=======
+https://travis-ci.org/closure-science/muppetforge.png
+
+
 Overview
 =======
 The [Puppet Forge](http://forge.puppetlabs.com) is the central repository for Puppet modules.
