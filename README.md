@@ -1,13 +1,22 @@
-Build Status 
-=======
-https://travis-ci.org/closure-science/muppetforge.png
-
-
 Overview
 =======
 The [Puppet Forge](http://forge.puppetlabs.com) is the central repository for Puppet modules.
 No packages nor sources to install a private Puppet Forge are available, its API is undocumented and it lacks an endpoint to automatize deployment of modules.
 This project is born from the necessity of a private Forge installation in an ecosystem knit for [CI](http://en.wikipedia.org/wiki/Continuous_integration) and/or [CD](http://en.wikipedia.org/wiki/Continuous_delivery).
+
+[![Build Status](https://travis-ci.org/closure-science/muppetforge.png)](https://travis-ci.org/closure-science/muppetforge)
+
+Installing muppetforge
+=======
+TBD
+
+Configuring
+=======
+TBD
+
+Building from sources
+=======
+TBD
 
 Integrating with Puppet
 =======
