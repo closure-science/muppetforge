@@ -16,7 +16,41 @@ TBD
 
 Building from sources
 =======
-TBD
+Requirements
+-------
+* [Erlang](http://www.erlang.org/download.html) R16 or higher with HiPE enabled
+* [git](http://git-scm.com/downloads)
+* [make](http://www.gnu.org/software/make/)
+* a c++ compiler for [Jiffy](https://github.com/davisp/jiffy)
+* [rebar](https://github.com/rebar/rebar) present on path
+* [puppet](http://puppetlabs.com/) 2.7 or higher
+
+Building
+-------
+Clone the repository:
+```bash
+git clone https://github.com/closure-science/muppetforge.git
+```
+enter the project directory
+```bash
+cd muppetforge
+```
+run make
+```bash
+make
+```
+
+Results
+-------
+The folder `muppetforge/rel/muppetforge_node` will contain a self-contained environment suited to run the muppetforge.
+To start the forge with a console, edit the configuration in `muppetforge/rel/muppetforge_node/releases/1/sys.config` to suit your needs, then run 
+```bash
+muppetforge/rel/muppetforge_node/bin/muppetforge_node console
+```
+You should be able to tarball the entire `muppetforge_node` folder, copy it to any system similar to the one where you compiled and run the muppetforge.
+Only the same version of `libc` and a few system libraries are required for it to work (detailed list TBD).
+
+The folder `muppetforge/muppetforge-integration/pkg/` will contain the tarballs for the `muppetforge/integration` puppet module. It will also be aveilable from the just-built muppetforge, so you can install it from there once started.
 
 Integrating with Puppet
 =======
