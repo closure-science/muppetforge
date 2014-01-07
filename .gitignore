@@ -1,5 +1,5 @@
 deps
-**/.eunit/
+.eunit
 .deps_plt
 *.beam
 *.app
