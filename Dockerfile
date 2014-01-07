@@ -5,4 +5,4 @@ RUN mkdir -p /opt/muppetforge/
 ADD rel/muppetforge_node /opt/muppetforge
 
 EXPOSE 8080
-ENTRYPOINT ["/opt/muppetforge/bin/muppetforge_node", "foreground"]
+ENTRYPOINT ["/opt/muppetforge/bin/muppetforge_node", "console"]
