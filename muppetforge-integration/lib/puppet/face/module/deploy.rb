@@ -11,7 +11,7 @@ class Puppet::Forge
       request = Net::HTTP::Post.new(URI.escape(@uri.path + request_path), {
           "User-Agent" => user_agent,
           "Content-Type" => "data/binary",
-          "Content-Length" => body_file.size.to_s
+          "Content-Length" => File.size(body_location).to_s
       })
       request.body_stream = body_file
       if ! @uri.user.nil? && ! @uri.password.nil?
