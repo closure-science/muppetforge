@@ -12,7 +12,87 @@ TBD
 
 Configuring
 =======
-TBD
+All configuration is set in the `sys.config` file, that contains a list of per-module configurations.
+
+Server connector
+-------
+HTTP
+```erlang
+{muppet_forge, [
+    {protocol, http},
+    {port, 8080} % port number to bind to
+]}
+```
+HTTPS
+```erlang
+{muppet_forge, [
+    {protocol, https},
+    {cacertfile, "/tmp/cacert.crt"}, % path to CA certificate
+    {certfile, "/tmp/server.crt"}, % path to server certificate
+    {keyfile, "/tmp/server.key"}, % path to server key
+    {port, 8084} % port number to bind to
+]}
+```
+It is not currently possible to enable both the HTTP and the HTTPS connectors at the same time on the same node.
+
+Authentication
+-------
+Free access (no auth)
+```erlang
+{muppet_auth, [
+    {auth_modules, [
+        {muppet_auth_always,[]}
+    ]}    
+]},
+```
+
+LDAP
+```erlang
+{muppet_auth, [
+    {auth_modules, [
+        {muppet_basic_auth_ldap, [
+            {servers, ["ldap.example.com"]}, % hostname or IP of the LDAP server
+            {dn_format, "uid=~s,ou=Bind,dc=example,dc=com"}, % LDAP bind format string. Username will be interpolated in place of '~s'
+            {ldap_options, [
+                {ssl, true}, % use SSL to connect to LDAP server
+                {port, 636} % LDAP server port
+            ]}
+        ]}
+    ]}    
+]},
+```
+
+CIDR whitelisting
+```erlang
+{muppet_auth, [
+    {auth_modules, [
+        {muppet_auth_cidr, [
+            {allowed_cidrs, [
+                % list of allowed CIDRs. The network address is given as string, the bitmask size as a number (e.g. {"127.0.0.0",8} allows access from the network 127.0.0.0/8)
+                {"127.0.0.0", 8},
+                {"192.168.1.0", 24}
+            ]}
+        ]}
+    ]}    
+]},
+```
+
+It is possible to enable more than one auth module in cascade -  if the first auth module does not grant access, an authentication attempt is made with the next one.
+```erlang
+% e.g. allow passwordless authentication from the 127.0.0.0/8 network, a connection from other networks requires LDAP authentication.
+{muppet_auth, [
+    {auth_modules, [
+        {muppet_auth_cidr, [
+            {allowed_cidrs, [{"127.0.0.0", 8}]}
+        ]},
+        {muppet_basic_auth_ldap, [
+            {servers, ["ldap.example.com"]},
+            {dn_format, "uid=~s,ou=Bind,dc=example,dc=com"},
+            {ldap_options, [{ssl, true}, {port, 636}]}
+        ]}
+    ]}    
+]},
+```
 
 Building from sources
 =======
