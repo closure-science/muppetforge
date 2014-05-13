@@ -189,14 +189,34 @@ Notice: Preparing to deploy pkg/fmeden-sample-0.1.0.tar.gz into http://192.168.1
 Module succesfully deployed.
 ```
 
+The web interface
+=======
+Once started, the forge's web interface is available on the configured port.
+
+Upstream
+-------
+The "Upstream" page allows configuration of forge mirroring. Just specify the upstream forge's base url and the replication mode.
+* **Polling only** Muppetforge periodically queries the remote forge for the available modules, and schedules a retrieve if necessary. Available for all forges.
+* **Fast change notification** Muppetforge registers itself on the remote forge to be notified immediately about new modules. Available only when the remote forge is a Muppetforge itself.
+
+Blacklist
+-------
+When mirroring a remote forge it's possible to specify modules that are not to be retrieved by the means of blacklists.
+A blacklist entry is made of four optional fields `upstream url`, `author`, `module`, `version`: it will prevent a module to be imported if its properties match all of the specified blacklist criterions.
+A blacklist entry will not delete already retrieved modules.
+
+Errors
+-------
+A log that reports all errors during modules mirroring.
+Muppetforge will retry to retrieve a failed module periodically.
 
 API documentation
 =======
 ##### `/modules.json` `Puppet`
-* **GET** Retrieves the list of modules served by the Forge. Supports the optional query parameter `q=&lt;query terms&gt;`
+* **GET** Retrieves the list of modules served by the Forge. Supports the optional query parameter `q=<query terms>`
 
 ##### `/api/v1/releases.json` `Puppet`
-* **GET** Retrieves the available releases for a module along with their details (tarball location, dependencies...). Requires the `module=&lt;author&gt;/&lt;module name&gt;` query parameter and supports the optional `version=&lt;version constraints&gt;`
+* **GET** Retrieves the available releases for a module along with their details (tarball location, dependencies...). Requires the `module=<author>/<module name>` query parameter and supports the optional `version=<version constraints>`
 
 ##### `/{author}/{modulename}.json` `Puppet`
 * **GET** Retrieves detail information for a single module.
