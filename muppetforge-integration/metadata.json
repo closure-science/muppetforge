@@ -1,0 +1,14 @@
+{
+  "name": "muppetforge-integration",
+  "version": "1.1.1",
+  "author": "muppetforge",
+  "summary": "Puppet - Muppetforge integration tools",
+  "license": "BSD3 http://opensource.org/licenses/BSD-3-Clause",
+  "source": "TODO git revision here",
+  "project_page": "https://github.com/closure-science/muppetforge",
+  "issues_url": null,
+  "description": "Functions and faces to better integrate Puppet and Muppetforge",
+  "dependencies": [
+  
+  ]
+}
