@@ -1,4 +1,4 @@
-FROM xdrum/base64
+FROM ubuntu:trusty
 MAINTAINER Cassibba Alessio <swapon+mf@gmail.com>, Fulvio Meden <caligin35+mf@gmail.com>, Roberto Ferranti <roberto.ferranti+mf@gmail.com> 
 
 RUN mkdir -p /opt/muppetforge/
