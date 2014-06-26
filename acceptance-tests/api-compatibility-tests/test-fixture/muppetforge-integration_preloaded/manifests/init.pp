@@ -1,0 +1,2 @@
+class integration_preloaded {
+}

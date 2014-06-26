@@ -1,0 +1,12 @@
+{
+  "name": "muppetforge/integration_preloaded",
+  "version": "0.1.0",
+  "author": "muppetforge",
+  "summary": "a module altready present on the forge",
+  "license": "none",
+  "source": "https://github.com/closure-science/muppetforge",
+  "project_page": "https://github.com/closure-science/muppetforge",
+  "issues_url": "",
+  "dependencies": []
+}
+
