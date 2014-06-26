@@ -1,18 +1,39 @@
 Overview
 =======
 The [Puppet Forge](http://forge.puppetlabs.com) is the central repository for Puppet modules.
-No packages nor sources to install a private Puppet Forge are available, its API is undocumented and it lacks an endpoint to automatize deployment of modules.
+No packages nor sources to install a private Puppet Forge are available and it lacks an endpoint to automatize deployment of modules.
 This project is born from the necessity of a private Forge installation in an ecosystem knit for [CI](http://en.wikipedia.org/wiki/Continuous_integration) and/or [CD](http://en.wikipedia.org/wiki/Continuous_delivery).
 
 [![Build Status](https://travis-ci.org/closure-science/muppetforge.png)](https://travis-ci.org/closure-science/muppetforge)
 
 Installing muppetforge
 =======
-TBD
+Muppetforge is available for install as a [Docker](http://www.docker.com/) image from the [Docker Hub](https://registry.hub.docker.com/u/closurescience/muppetforge/).
+
+Using the Docker image
+-------
+To download the image and run it in a container choose a port on your host machine to expose the forge to, then run:
+```bash
+docker run -p <PORT_TO_PUBLISH>:8080 closurescience/muppetforge
+```
+
+If you want to customize the configuration before starting the container you'll need a custom `sys.config` file (read below) and a Dockerfile to build your configured image, like the following one:
+```
+FROM closurescience/muppetforge
+ADD sys.config /opt/muppetforge/releases/1/sys.config
+# if you configure the listen port to a different one than 8080,
+# uncomment the following line filling the placeholder.
+#EXPOSE <ANOTHER_PORT>
+```
+Then build your image and run it:
+```bash
+docker build -t my_configured_muppetforge .
+docker run -p <PORT_TO_PUBLISH>:{8080|<ANOTHER_PORT>} my_configured_muppetforge
+```
 
 Configuring
 =======
-All configuration is set in the `sys.config` file, that contains a list of per-module configurations.
+All configuration is set in the `muppetforge_node/releases/1/sys.config` file, that contains a list of per-module configurations.
 
 Server connector
 -------
