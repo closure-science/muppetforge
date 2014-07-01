@@ -1,11 +1,8 @@
 require 'test/unit'
 require 'puppet/face'
 require 'puppet/module_tool'
-
-
-# OUTSIDE: system `docker run --name fixture -d muppetforge-api-integration:fixture`
-# OUTSIDE: run this container as: system `docker run -i -t --link fixture:forge <name>`
-# docker returns the run exit status as exit, testunit returns 1 on failure
+require 'socket'
+require 'timeout'
 
 class ModuleToolFacade
 
@@ -36,8 +33,6 @@ class ModuleToolFacade
         installer = Puppet::ModuleTool::Applications::Installer.new(name, forge, install_dir, {:target_dir => @modulepath })
         installer.run
     end
-
-
 end
 
 class ApiIntegrationTest321 < Test::Unit::TestCase
@@ -45,6 +40,19 @@ class ApiIntegrationTest321 < Test::Unit::TestCase
     def setup
         @module_tool = ModuleToolFacade.new
         @module_tool.setup_puppet
+        await_forge_boot()
+    end
+
+    def await_forge_boot
+        Timeout::timeout(30) do
+            begin
+                s = TCPSocket.new("forge", 8080)
+                s.close
+                return
+            rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
+                retry
+            end
+        end
     end
 
     def test_can_search
