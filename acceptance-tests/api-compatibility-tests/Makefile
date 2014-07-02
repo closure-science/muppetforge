@@ -10,7 +10,7 @@ ifeq ($(DOCKER),)
 $(error "Docker not available on this system")
 endif
 
-.PHONY: all clean
+.PHONY: all clean fixture 3.2.1
 
 all: 3.2.1
 
@@ -21,7 +21,7 @@ fixture:
 3.2.1: fixture
 	docker build -t muppetforge-api-integration:3.2.1 3.2.1/
 	docker run --name fixture -d muppetforge-api-integration:fixture
-	docker run --link fixture:forge --name 3.2.1 muppetforge-api-integration:3.2.1
+	docker run --link fixture:forge --name 3.2.1 --rm muppetforge-api-integration:3.2.1
 	- docker kill fixture
 	- docker rm fixture
 

@@ -43,7 +43,8 @@ endif
 
 
 .PHONY: all compile doc clean test dialyzer typer shell distclean pdf \
-  update-deps clean-common-test-data rebuild release start console puppetmodule
+  update-deps clean-common-test-data rebuild release start console puppetmodule \
+  docker compatibility
 
 all: deps compile dialyzer test puppetmodule release
 
@@ -100,6 +101,7 @@ clean:
 	- rm -rf $(CURDIR)/apps/*/ebin
 	- rm -rf $(CURDIR)/apps/*/src/*.beam
 	$(REBAR) skip_deps=true clean
+	$(MAKE) -C acceptance-tests/api-compatibility-tests/ clean
 
 distclean: clean
 	- rm -rf $(DEPS_PLT)
@@ -123,5 +125,8 @@ puppetmodule:
 	@echo "Copying muppetforge-integration packages to repository assets dir..."
 	@cp muppetforge-integration/pkg/muppetforge-integration-*.tar.gz apps/muppet_repository/priv/assets/
 
-compatibility:
+docker: all release
+	docker build -t closurescience/muppetforge .
+
+compatibility: docker
 	$(MAKE) -C acceptance-tests/api-compatibility-tests/ all
