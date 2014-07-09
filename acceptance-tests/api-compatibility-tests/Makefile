@@ -12,11 +12,18 @@ endif
 
 .PHONY: all clean fixture 3.2.1
 
-all: 3.2.1
+all: 2.7.12 3.2.1
 
 fixture:
 	puppet module build test-fixture/muppetforge-integration_preloaded/
 	docker build -t muppetforge-api-integration:fixture test-fixture/
+
+2.7.12: fixture
+	docker build -t muppetforge-api-integration:2.7.12 2.7.12/
+	docker run --name fixture -d muppetforge-api-integration:fixture
+	docker run --link fixture:forge --name 2.7.12 --rm muppetforge-api-integration:2.7.12
+	- docker kill fixture
+	- docker rm fixture
 
 3.2.1: fixture
 	docker build -t muppetforge-api-integration:3.2.1 3.2.1/
