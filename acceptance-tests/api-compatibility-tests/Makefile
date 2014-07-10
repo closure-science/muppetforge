@@ -1,3 +1,5 @@
+VERSIONS = 2.7.12 2.7.25 3.2.1 3.6.1
+TEMPDIR := target
 PUPPET=$(shell which puppet)
 
 ifeq ($(PUPPET),)
@@ -10,31 +12,39 @@ ifeq ($(DOCKER),)
 $(error "Docker not available on this system")
 endif
 
-.PHONY: all clean fixture 3.2.1
+.PHONY: clean fixture $(VERSIONS)
 
-all: 2.7.12 3.2.1
+all: $(VERSIONS)
 
 fixture:
 	puppet module build test-fixture/muppetforge-integration_preloaded/
 	docker build -t muppetforge-api-integration:fixture test-fixture/
 
-2.7.12: fixture
-	docker build -t muppetforge-api-integration:2.7.12 2.7.12/
-	docker run --name fixture -d muppetforge-api-integration:fixture
-	docker run --link fixture:forge --name 2.7.12 --rm muppetforge-api-integration:2.7.12
-	- docker kill fixture
-	- docker rm fixture
+#weird trick to match rule to folder name...
+$(TEMPDIR)/%/./:
+	mkdir -p $@
 
-3.2.1: fixture
-	docker build -t muppetforge-api-integration:3.2.1 3.2.1/
-	docker run --name fixture -d muppetforge-api-integration:fixture
-	docker run --link fixture:forge --name 3.2.1 --rm muppetforge-api-integration:3.2.1
-	- docker kill fixture
-	- docker rm fixture
+$(TEMPDIR)/%/api_tests.rb: api_tests.rb | $(TEMPDIR)/%/./
+	cp api_tests.rb $@
+
+$(TEMPDIR)/%/Dockerfile: Dockerfile.template | $(TEMPDIR)/%/./
+	cat Dockerfile.template | sed s/@@VERSION@@/$*/g > $@
+
+$(TEMPDIR)/%/image_built: $(TEMPDIR)/%/Dockerfile $(TEMPDIR)/%/api_tests.rb
+	docker build -t muppetforge-api-integration:$* $(TEMPDIR)/$*/
+	touch $(TEMPDIR)/$*/image_built
+
+$(VERSIONS): %: $(TEMPDIR)/%/image_built fixture
+	docker run --name fixture -d muppetforge-api-integration:fixture && \
+	docker run --link fixture:forge --name $@ --rm muppetforge-api-integration:$@; \
+	RETVAL=$$?; \
+	$(MAKE) cleanup_fixture; \
+	exit $$RETVAL
+
+cleanup_fixture:
+	docker kill fixture; \
+	docker rm fixture
 
 clean:
-	- docker kill fixture
-	- docker rm fixture
-	- docker kill 3.2.1
-	- docker rm 3.2.1
-	@echo -n 
+	- $(MAKE) cleanup_fixture
+	rm -rf target
