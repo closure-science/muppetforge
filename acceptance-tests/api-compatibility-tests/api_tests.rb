@@ -21,12 +21,12 @@ class ApiIntegrationTest < Test::Unit::TestCase
     end
 
     def test_can_search
-        out = `puppet module search preloaded | tail -n +3 | grep muppetforge-integration_preloaded`
+        out = `puppet module search --module_repository http://forge:8080 preloaded | tail -n +3 | grep muppetforge-integration`
         assert_equal(0, $?.to_i, out)
     end
 
     def test_can_install
-        out = `puppet module install muppetforge/integration_preloaded`
+        out = `puppet module install --module_repository http://forge:8080 muppetforge/integration_preloaded`
         assert_equal(0, $?.to_i, out)
     end
 

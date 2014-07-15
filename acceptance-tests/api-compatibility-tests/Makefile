@@ -1,4 +1,4 @@
-VERSIONS = 2.7.12 2.7.25 3.2.1 3.6.1
+VERSIONS = 2.7.25 3.2.1 3.6.1
 TEMPDIR := target
 PUPPET=$(shell which puppet)
 
